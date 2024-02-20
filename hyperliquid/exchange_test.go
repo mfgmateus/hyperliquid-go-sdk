@@ -65,3 +65,18 @@ func TestMarketClose(t *testing.T) {
 	fmt.Printf("Result is %s", m)
 
 }
+
+func TestUpdateLeverage(t *testing.T) {
+
+	req := UpdateLeverageRequest{
+		Coin:     "ARB",
+		Leverage: 5,
+		IsCross:  true,
+	}
+
+	result := exchangeApi.UpdateLeverage(req)
+	m, _ := json.Marshal(result)
+
+	fmt.Printf("Result is %s", m)
+
+}

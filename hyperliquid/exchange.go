@@ -2,7 +2,6 @@ package hyperliquid
 
 import (
 	"encoding/binary"
-	"encoding/json"
 	"fmt"
 	"github.com/STFX-IO/hyperliquid-go-sdk/cryptoutil"
 	"github.com/ethereum/go-ethereum/common"
@@ -171,15 +170,36 @@ func (e *ExchangeImpl) BulkOrders(requests []OrderRequest) any {
 
 	v, r, s := e.SignL1Action(action, timestamp, (*e.cli).IsMainnet())
 
-	payload := PlaceOrderRequest{
+	payload := ExchangeRequest{
 		Action:       action,
 		Nonce:        timestamp,
 		Signature:    ToTypedSig(r, s, v),
 		VaultAddress: nil,
 	}
 
-	p, _ := json.Marshal(payload)
-	fmt.Printf("CloseRequest body is %s\n", p)
+	res := (*e.cli).Post("/exchange", payload)
+	return res
+}
+
+func (e *ExchangeImpl) UpdateLeverage(request UpdateLeverageRequest) any {
+
+	timestamp := GetNonce()
+
+	action := UpdateLeverageAction{
+		Type:     "updateLeverage",
+		Asset:    e.meta[request.Coin].AssetId,
+		IsCross:  request.IsCross,
+		Leverage: request.Leverage,
+	}
+
+	v, r, s := e.SignL1Action(action, timestamp, (*e.cli).IsMainnet())
+
+	payload := ExchangeRequest{
+		Action:       action,
+		Nonce:        timestamp,
+		Signature:    ToTypedSig(r, s, v),
+		VaultAddress: nil,
+	}
 
 	res := (*e.cli).Post("/exchange", payload)
 	return res
@@ -189,7 +209,7 @@ func GetNonce() int64 {
 	return time.Now().UnixMilli()
 }
 
-func (e *ExchangeImpl) SignL1Action(action Action, timestamp int64, isMainnet bool) (byte, [32]byte, [32]byte) {
+func (e *ExchangeImpl) SignL1Action(action any, timestamp int64, isMainnet bool) (byte, [32]byte, [32]byte) {
 	hash := buildActionHash(action, "", timestamp)
 	message := buildMessage(hash.Bytes(), isMainnet)
 	return e.SignInner(message)
@@ -225,7 +245,7 @@ func (e *ExchangeImpl) SignInner(message apitypes.TypedDataMessage) (byte, [32]b
 
 }
 
-func buildActionHash(action Action, vaultAd string, nonce int64) common.Hash {
+func buildActionHash(action any, vaultAd string, nonce int64) common.Hash {
 	var (
 		data []byte
 	)

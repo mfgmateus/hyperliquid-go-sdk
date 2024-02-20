@@ -31,8 +31,8 @@ type RsvSignature struct {
 	V byte   `json:"v"`
 }
 
-type PlaceOrderRequest struct {
-	Action       Action       `json:"action"`
+type ExchangeRequest struct {
+	Action       any          `json:"action"`
 	Nonce        int64        `json:"nonce"`
 	Signature    RsvSignature `json:"signature"`
 	VaultAddress *string      `json:"vaultAddress"`
@@ -43,10 +43,17 @@ type Message struct {
 	ConnectionId []byte `json:"connectionId"`
 }
 
-type Action struct {
+type PlaceOrderAction struct {
 	Type     string      `msgpack:"type" json:"type"`
 	Orders   []OrderWire `msgpack:"orders" json:"orders"`
 	Grouping string      `msgpack:"grouping" json:"grouping"`
+}
+
+type UpdateLeverageAction struct {
+	Type     string `msgpack:"type" json:"type"`
+	Asset    int    `msgpack:"asset" json:"asset"`
+	IsCross  bool   `msgpack:"isCross" json:"isCross"`
+	Leverage int    `msgpack:"leverage" json:"leverage"`
 }
 
 type OrderWire struct {
@@ -84,4 +91,10 @@ type OpenRequest struct {
 	Sz       *float64
 	Slippage *float64
 	Cloid    *string
+}
+
+type UpdateLeverageRequest struct {
+	Coin     string
+	IsCross  bool
+	Leverage int
 }
