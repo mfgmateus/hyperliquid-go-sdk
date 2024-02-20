@@ -29,7 +29,6 @@ func (a *APIDefault) Post(path string, payload any) any {
 	apiUrl := fmt.Sprintf("%s%s", a.baseUrl, path)
 	body, _ := json.Marshal(payload)
 
-	fmt.Printf("%s\n", body)
 	bodyReader := bytes.NewReader(body)
 	req, _ := http.NewRequest("POST", apiUrl, bodyReader)
 	req.Header.Set("Content-Type", "application/json")

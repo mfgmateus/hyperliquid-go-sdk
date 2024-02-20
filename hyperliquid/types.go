@@ -69,8 +69,17 @@ type SigRequest struct {
 	DTypeMsg    map[string]interface{}
 }
 
-type Request struct {
+type CloseRequest struct {
 	Coin     string
+	Px       *float64
+	Sz       *float64
+	Slippage *float64
+	Cloid    *string
+}
+
+type OpenRequest struct {
+	Coin     string
+	IsBuy    bool
 	Px       *float64
 	Sz       *float64
 	Slippage *float64

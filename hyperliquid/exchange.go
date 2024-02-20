@@ -39,6 +39,7 @@ func (e *ExchangeImpl) GetAddress() string {
 func (e *ExchangeImpl) SlippagePrice(coin string, isBuy bool, slippage float64, px *float64) float64 {
 
 	if px == nil || *px <= 0.0 {
+		px = new(float64)
 		parsed := GetMktPx(coin, e)
 		*px = parsed
 	}
@@ -81,10 +82,25 @@ func IsBuy(szi float64) bool {
 	}
 }
 
-func (e *ExchangeImpl) MarketClose(req Request) any {
+func (e *ExchangeImpl) MarketOpen(req OpenRequest) any {
+
+	slippage := GetSlippage(req.Slippage)
+	finalPx := e.SlippagePrice(req.Coin, req.IsBuy, slippage, req.Px)
+
+	orderType := OrderType{
+		Limit: &LimitOrderType{
+			Tif: "Ioc",
+		},
+	}
+
+	return e.Order(req.Coin, req.IsBuy, *req.Sz, finalPx, orderType, false, req.Cloid)
+
+}
+
+func (e *ExchangeImpl) MarketClose(req CloseRequest) any {
 
 	positions := e.infoApi.GetUserState(e.walletAddr).AssetPositions
-	slippage := GetSlippage(req)
+	slippage := GetSlippage(req.Slippage)
 
 	for _, position := range positions {
 
@@ -98,13 +114,13 @@ func (e *ExchangeImpl) MarketClose(req Request) any {
 		sz := req.Sz
 
 		if sz == nil || *sz <= 0.0 {
+			sz = new(float64)
 			*sz = math.Abs(szi)
 		}
 
 		isBuy := IsBuy(szi)
 
-		px := req.Px
-		*px = e.SlippagePrice(req.Coin, isBuy, slippage, px)
+		finalPx := e.SlippagePrice(req.Coin, isBuy, slippage, req.Px)
 
 		orderType := OrderType{
 			Limit: &LimitOrderType{
@@ -112,18 +128,18 @@ func (e *ExchangeImpl) MarketClose(req Request) any {
 			},
 		}
 
-		return e.Order(req.Coin, isBuy, *sz, *px, orderType, true, req.Cloid)
+		return e.Order(req.Coin, isBuy, *sz, finalPx, orderType, true, req.Cloid)
 
 	}
 
 	return nil
 }
 
-func GetSlippage(req Request) float64 {
+func GetSlippage(sl *float64) float64 {
 	slippage := DefaultSlippage
 
-	if req.Slippage != nil {
-		slippage = *req.Slippage
+	if sl != nil {
+		slippage = *sl
 	}
 	return slippage
 }
@@ -163,7 +179,7 @@ func (e *ExchangeImpl) BulkOrders(requests []OrderRequest) any {
 	}
 
 	p, _ := json.Marshal(payload)
-	fmt.Printf("Request body is %s\n", p)
+	fmt.Printf("CloseRequest body is %s\n", p)
 
 	res := (*e.cli).Post("/exchange", payload)
 	return res
