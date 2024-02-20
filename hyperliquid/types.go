@@ -68,3 +68,11 @@ type SigRequest struct {
 	DType       []apitypes.Type
 	DTypeMsg    map[string]interface{}
 }
+
+type Request struct {
+	Coin     string
+	Px       *float64
+	Sz       *float64
+	Slippage *float64
+	Cloid    *string
+}

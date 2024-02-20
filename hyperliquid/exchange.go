@@ -81,17 +81,21 @@ func IsBuy(szi float64) bool {
 	}
 }
 
-func (e *ExchangeImpl) MarketClose(coin string, sz *float64, px *float64, slippage float64, cloid *string) any {
+func (e *ExchangeImpl) MarketClose(req Request) any {
+
 	positions := e.infoApi.GetUserState(e.walletAddr).AssetPositions
+	slippage := GetSlippage(req)
+
 	for _, position := range positions {
 
 		item := position.Position
 
-		if coin != item.Coin {
+		if req.Coin != item.Coin {
 			continue
 		}
 
 		szi, _ := strconv.ParseFloat(item.Szi, 64)
+		sz := req.Sz
 
 		if sz == nil || *sz <= 0.0 {
 			*sz = math.Abs(szi)
@@ -99,7 +103,8 @@ func (e *ExchangeImpl) MarketClose(coin string, sz *float64, px *float64, slippa
 
 		isBuy := IsBuy(szi)
 
-		*px = e.SlippagePrice(coin, isBuy, slippage, px)
+		px := req.Px
+		*px = e.SlippagePrice(req.Coin, isBuy, slippage, px)
 
 		orderType := OrderType{
 			Limit: &LimitOrderType{
@@ -107,11 +112,20 @@ func (e *ExchangeImpl) MarketClose(coin string, sz *float64, px *float64, slippa
 			},
 		}
 
-		return e.Order(coin, isBuy, *sz, *px, orderType, true, cloid)
+		return e.Order(req.Coin, isBuy, *sz, *px, orderType, true, req.Cloid)
 
 	}
 
 	return nil
+}
+
+func GetSlippage(req Request) float64 {
+	slippage := DefaultSlippage
+
+	if req.Slippage != nil {
+		slippage = *req.Slippage
+	}
+	return slippage
 }
 
 func (e *ExchangeImpl) Order(coin string, isBuy bool, sz float64,
