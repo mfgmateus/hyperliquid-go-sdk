@@ -19,7 +19,7 @@ var (
 
 func TestMarketOpenAndClose(t *testing.T) {
 
-	size := 10.0
+	size := 2.0
 
 	req := OpenRequest{
 		Coin: "ARB",

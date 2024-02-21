@@ -97,3 +97,33 @@ type UpdateLeverageRequest struct {
 	IsCross  bool
 	Leverage int
 }
+
+type PlaceOrderResponse struct {
+	Status   string         `json:"status"`
+	Response *InnerResponse `json:"response"`
+}
+
+type InnerResponse struct {
+	Type string       `json:"type"`
+	Data DataResponse `json:"data"`
+}
+
+type DataResponse struct {
+	Statuses []StatusResponse `json:"statuses"`
+}
+
+type StatusResponse struct {
+	Resting *RestingStatus `json:"resting"`
+	Filled  *FilledStatus  `json:"filled"`
+	Error   *string        `json:"error"`
+}
+
+type RestingStatus struct {
+	OrderId string `json:"oid"`
+}
+
+type FilledStatus struct {
+	OrderId int    `json:"oid"`
+	AvgPx   string `json:"avgPx"`
+	TotalSz string `json:"totalSz"`
+}

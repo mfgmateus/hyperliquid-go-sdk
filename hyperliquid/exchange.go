@@ -2,6 +2,7 @@ package hyperliquid
 
 import (
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -14,9 +15,9 @@ import (
 )
 
 type ExchangeApi interface {
-	MarketOpen(req OpenRequest) any
-	MarketClose(req CloseRequest) any
-	Order(req OrderRequest) any
+	MarketOpen(req OpenRequest) *PlaceOrderResponse
+	MarketClose(req CloseRequest) *PlaceOrderResponse
+	Order(req OrderRequest) *PlaceOrderResponse
 	UpdateLeverage(req UpdateLeverageRequest) any
 }
 
@@ -103,7 +104,7 @@ func IsBuy(szi float64) bool {
 	}
 }
 
-func (e *ExchangeImpl) MarketOpen(req OpenRequest) any {
+func (e *ExchangeImpl) MarketOpen(req OpenRequest) *PlaceOrderResponse {
 
 	slippage := GetSlippage(req.Slippage)
 	finalPx := e.SlippagePrice(req.Coin, req.IsBuy, slippage, req.Px)
@@ -128,7 +129,7 @@ func (e *ExchangeImpl) MarketOpen(req OpenRequest) any {
 
 }
 
-func (e *ExchangeImpl) MarketClose(req CloseRequest) any {
+func (e *ExchangeImpl) MarketClose(req CloseRequest) *PlaceOrderResponse {
 
 	positions := e.infoApi.GetUserState(e.walletAddr).AssetPositions
 	slippage := GetSlippage(req.Slippage)
@@ -185,12 +186,12 @@ func GetSlippage(sl *float64) float64 {
 	return slippage
 }
 
-func (e *ExchangeImpl) Order(req OrderRequest) any {
+func (e *ExchangeImpl) Order(req OrderRequest) *PlaceOrderResponse {
 	return e.BulkOrders([]OrderRequest{req})
 
 }
 
-func (e *ExchangeImpl) BulkOrders(requests []OrderRequest) any {
+func (e *ExchangeImpl) BulkOrders(requests []OrderRequest) *PlaceOrderResponse {
 	var wires []OrderWire
 	for _, req := range requests {
 		wires = append(wires, OrderReqToWire(req, e.meta))
@@ -209,7 +210,13 @@ func (e *ExchangeImpl) BulkOrders(requests []OrderRequest) any {
 	}
 
 	res := (*e.cli).Post("/exchange", payload)
-	return res
+	m, _ := json.Marshal(res)
+
+	response := &PlaceOrderResponse{}
+
+	_ = json.Unmarshal(m, &response)
+
+	return response
 }
 
 func (e *ExchangeImpl) UpdateLeverage(request UpdateLeverageRequest) any {
