@@ -3,10 +3,10 @@ package hyperliquid
 import (
 	"encoding/binary"
 	"fmt"
-	"github.com/STFX-IO/hyperliquid-go-sdk/cryptoutil"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/signer/core/apitypes"
+	"github.com/mfgmateus/hyperliquid-go-sdk/cryptoutil"
 	"github.com/vmihailenco/msgpack/v5"
 	"math"
 	"strconv"

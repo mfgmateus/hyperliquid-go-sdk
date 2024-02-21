@@ -1,9 +1,9 @@
 package hyperliquid
 
 import (
-	"github.com/STFX-IO/hyperliquid-go-sdk/cryptoutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/signer/core/apitypes"
+	"github.com/mfgmateus/hyperliquid-go-sdk/cryptoutil"
 )
 
 const ChainId = 1337

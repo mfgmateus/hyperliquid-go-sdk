@@ -3,7 +3,7 @@ package hyperliquid
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/STFX-IO/hyperliquid-go-sdk/cryptoutil"
+	"github.com/mfgmateus/hyperliquid-go-sdk/cryptoutil"
 	"testing"
 	"time"
 )
