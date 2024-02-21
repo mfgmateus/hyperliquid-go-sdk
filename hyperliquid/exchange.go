@@ -13,6 +13,13 @@ import (
 	"time"
 )
 
+type ExchangeApi interface {
+	MarketOpen(req OpenRequest) any
+	MarketClose(req CloseRequest) any
+	Order(req OrderRequest) any
+	UpdateLeverage(req UpdateLeverageRequest) any
+}
+
 type ExchangeImpl struct {
 	pkeyManager cryptoutil.PKeyManager
 	walletAddr  string
@@ -21,8 +28,23 @@ type ExchangeImpl struct {
 	meta        map[string]AssetInfo
 }
 
-func NewExchange(manager cryptoutil.PKeyManager, api InfoApi, meta map[string]AssetInfo, walletAddr string, cli *API) ExchangeImpl {
-	return ExchangeImpl{
+func NewExchange(manager cryptoutil.PKeyManager, walletAddr string, cli *API) ExchangeApi {
+
+	infoApi := NewInfoApi(cli)
+	meta := BuildMetaMap(infoApi)
+
+	return &ExchangeImpl{
+		pkeyManager: manager,
+		infoApi:     infoApi,
+		meta:        meta,
+		cli:         cli,
+		walletAddr:  walletAddr,
+	}
+}
+
+func NewExchangeCustom(manager cryptoutil.PKeyManager, api InfoApi, meta map[string]AssetInfo,
+	walletAddr string, cli *API) ExchangeApi {
+	return &ExchangeImpl{
 		pkeyManager: manager,
 		infoApi:     api,
 		meta:        meta,
@@ -92,7 +114,17 @@ func (e *ExchangeImpl) MarketOpen(req OpenRequest) any {
 		},
 	}
 
-	return e.Order(req.Coin, req.IsBuy, *req.Sz, finalPx, orderType, false, req.Cloid)
+	orderReq := OrderRequest{
+		Coin:       req.Coin,
+		IsBuy:      req.IsBuy,
+		Sz:         *req.Sz,
+		LimitPx:    finalPx,
+		OrderType:  orderType,
+		ReduceOnly: false,
+		Cloid:      req.Cloid,
+	}
+
+	return e.Order(orderReq)
 
 }
 
@@ -127,7 +159,17 @@ func (e *ExchangeImpl) MarketClose(req CloseRequest) any {
 			},
 		}
 
-		return e.Order(req.Coin, isBuy, *sz, finalPx, orderType, true, req.Cloid)
+		orderReq := OrderRequest{
+			Coin:       req.Coin,
+			IsBuy:      isBuy,
+			Sz:         *sz,
+			LimitPx:    finalPx,
+			OrderType:  orderType,
+			ReduceOnly: true,
+			Cloid:      req.Cloid,
+		}
+
+		return e.Order(orderReq)
 
 	}
 
@@ -143,19 +185,8 @@ func GetSlippage(sl *float64) float64 {
 	return slippage
 }
 
-func (e *ExchangeImpl) Order(coin string, isBuy bool, sz float64,
-	px float64, orderType OrderType, reduceOnly bool, cloid *string) any {
-	order := OrderRequest{
-		Coin:       coin,
-		IsBuy:      isBuy,
-		Sz:         sz,
-		LimitPx:    px,
-		OrderType:  orderType,
-		ReduceOnly: reduceOnly,
-		Cloid:      cloid,
-	}
-
-	return e.BulkOrders([]OrderRequest{order})
+func (e *ExchangeImpl) Order(req OrderRequest) any {
+	return e.BulkOrders([]OrderRequest{req})
 
 }
 

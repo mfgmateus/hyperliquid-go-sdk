@@ -13,10 +13,8 @@ const PrivateKey = "16ec09be5213c662256b65ed5d6059d3dbd5c65ab6f21e7d7878eac291ca
 
 var (
 	baseClient  = NewApiDefault(TestnetUrl)
-	info        = NewInfoApi(&baseClient)
 	manager     = cryptoutil.NewPkey(PrivateKey)
-	metaMap     = BuildMetaMap(info)
-	exchangeApi = NewExchange(manager, info, metaMap, Address, &baseClient)
+	exchangeApi = NewExchange(manager, Address, &baseClient)
 )
 
 func TestMarketOpenAndClose(t *testing.T) {
