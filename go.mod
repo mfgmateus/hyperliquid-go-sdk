@@ -1,4 +1,4 @@
-module github.com/STFX-IO/hyperliquid-go-sdk
+module github.com/mfgmateus/hyperliquid-go-sdk
 
 go 1.20
 
