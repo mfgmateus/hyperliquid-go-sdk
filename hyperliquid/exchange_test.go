@@ -8,8 +8,8 @@ import (
 	"time"
 )
 
-const Address = "0x60Cc17b782e9c5f14806663f8F617921275b9720"
-const PrivateKey = "16ec09be5213c662256b65ed5d6059d3dbd5c65ab6f21e7d7878eac291ca0eb1"
+const Address = ""
+const PrivateKey = ""
 
 var (
 	baseClient  = NewApiDefault(TestnetUrl)
