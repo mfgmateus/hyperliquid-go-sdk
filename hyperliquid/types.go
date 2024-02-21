@@ -63,7 +63,6 @@ type OrderWire struct {
 	SizePx     string        `msgpack:"s" json:"s"`
 	ReduceOnly bool          `msgpack:"r" json:"r"`
 	OrderType  OrderTypeWire `msgpack:"t" json:"t"`
-	Cloid      *string       `msgpack:"c" json:"c"`
 }
 
 type OrderTypeWire struct {

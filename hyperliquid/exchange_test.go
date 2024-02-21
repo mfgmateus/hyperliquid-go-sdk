@@ -8,8 +8,8 @@ import (
 	"time"
 )
 
-const Address = ""
-const PrivateKey = ""
+const Address = "0x60Cc17b782e9c5f14806663f8F617921275b9720"
+const PrivateKey = "16ec09be5213c662256b65ed5d6059d3dbd5c65ab6f21e7d7878eac291ca0eb1"
 
 var (
 	baseClient  = NewApiDefault(TestnetUrl)
@@ -22,12 +22,10 @@ var (
 func TestMarketOpenAndClose(t *testing.T) {
 
 	size := 10.0
-	cloid := GetRandomCloid()
 
 	req := OpenRequest{
-		Coin:  "ARB",
-		Sz:    &size,
-		Cloid: &cloid,
+		Coin: "ARB",
+		Sz:   &size,
 	}
 
 	result := exchangeApi.MarketOpen(req)
@@ -36,8 +34,7 @@ func TestMarketOpenAndClose(t *testing.T) {
 	fmt.Printf("Open Result is %s", m)
 
 	closeReq := CloseRequest{
-		Coin:  "ARB",
-		Cloid: &cloid,
+		Coin: "ARB",
 	}
 
 	//wait for 2 seconds?

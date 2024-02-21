@@ -47,7 +47,6 @@ func OrderReqToWire(req OrderRequest, meta map[string]AssetInfo) OrderWire {
 		SizePx:     FloatToWire(req.Sz, &info.SzDecimals),
 		ReduceOnly: req.ReduceOnly,
 		OrderType:  OrderTypeToWire(req.OrderType),
-		Cloid:      req.Cloid,
 	}
 }
 
