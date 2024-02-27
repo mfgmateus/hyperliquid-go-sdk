@@ -30,10 +30,10 @@ func HexToBytes(addr string) []byte {
 	}
 }
 
-func OrderWiresToOrderAction(orders []OrderWire) PlaceOrderAction {
+func OrderWiresToOrderAction(orders []OrderWire, grouping Grouping) PlaceOrderAction {
 	return PlaceOrderAction{
 		Type:     "order",
-		Grouping: "na",
+		Grouping: grouping,
 		Orders:   orders,
 	}
 }
@@ -56,6 +56,16 @@ func OrderTypeToWire(orderType OrderType) OrderTypeWire {
 			Limit: &LimitOrderType{
 				Tif: orderType.Limit.Tif,
 			},
+			Trigger: nil,
+		}
+	} else if orderType.Trigger != nil {
+		return OrderTypeWire{
+			Trigger: &TriggerOrderType{
+				TpSl:      orderType.Trigger.TpSl,
+				TriggerPx: orderType.Trigger.TriggerPx,
+				IsMarket:  orderType.Trigger.IsMarket,
+			},
+			Limit: nil,
 		}
 	}
 	return OrderTypeWire{}

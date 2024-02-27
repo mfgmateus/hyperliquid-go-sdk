@@ -17,7 +17,8 @@ import (
 type ExchangeApi interface {
 	MarketOpen(req OpenRequest) *PlaceOrderResponse
 	MarketClose(req CloseRequest) *PlaceOrderResponse
-	Order(req OrderRequest) *PlaceOrderResponse
+	Trigger(req TriggerRequest) *PlaceOrderResponse
+	Order(req OrderRequest, grouping Grouping) *PlaceOrderResponse
 	UpdateLeverage(req UpdateLeverageRequest) any
 }
 
@@ -125,7 +126,7 @@ func (e *ExchangeImpl) MarketOpen(req OpenRequest) *PlaceOrderResponse {
 		Cloid:      req.Cloid,
 	}
 
-	return e.Order(orderReq)
+	return e.Order(orderReq, GroupingNa)
 
 }
 
@@ -170,7 +171,51 @@ func (e *ExchangeImpl) MarketClose(req CloseRequest) *PlaceOrderResponse {
 			Cloid:      req.Cloid,
 		}
 
-		return e.Order(orderReq)
+		return e.Order(orderReq, GroupingNa)
+
+	}
+
+	return nil
+}
+
+func (e *ExchangeImpl) Trigger(req TriggerRequest) *PlaceOrderResponse {
+
+	slippage := GetSlippage(req.Slippage)
+	positions := e.infoApi.GetUserState(e.walletAddr).AssetPositions
+
+	for _, position := range positions {
+
+		item := position.Position
+
+		if req.Coin != item.Coin {
+			continue
+		}
+
+		szi, _ := strconv.ParseFloat(item.Szi, 64)
+
+		sz := req.Sz
+		if sz == nil || *sz <= 0.0 {
+			sz = new(float64)
+			*sz = math.Abs(szi)
+		}
+		isBuy := IsBuy(szi)
+		finalPx := e.SlippagePrice(req.Coin, isBuy, slippage, req.Px)
+
+		orderType := OrderType{
+			Trigger: &req.Trigger,
+		}
+
+		orderReq := OrderRequest{
+			Coin:       req.Coin,
+			IsBuy:      isBuy,
+			Sz:         0,
+			LimitPx:    finalPx,
+			OrderType:  orderType,
+			ReduceOnly: true,
+			Cloid:      req.Cloid,
+		}
+
+		return e.Order(orderReq, GroupingTpSl)
 
 	}
 
@@ -186,19 +231,19 @@ func GetSlippage(sl *float64) float64 {
 	return slippage
 }
 
-func (e *ExchangeImpl) Order(req OrderRequest) *PlaceOrderResponse {
-	return e.BulkOrders([]OrderRequest{req})
+func (e *ExchangeImpl) Order(req OrderRequest, grouping Grouping) *PlaceOrderResponse {
+	return e.BulkOrders([]OrderRequest{req}, grouping)
 
 }
 
-func (e *ExchangeImpl) BulkOrders(requests []OrderRequest) *PlaceOrderResponse {
+func (e *ExchangeImpl) BulkOrders(requests []OrderRequest, grouping Grouping) *PlaceOrderResponse {
 	var wires []OrderWire
 	for _, req := range requests {
 		wires = append(wires, OrderReqToWire(req, e.meta))
 	}
 
 	timestamp := GetNonce()
-	action := OrderWiresToOrderAction(wires)
+	action := OrderWiresToOrderAction(wires, grouping)
 
 	v, r, s := e.SignL1Action(action, timestamp, (*e.cli).IsMainnet())
 

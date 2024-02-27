@@ -18,12 +18,29 @@ type OrderRequest struct {
 }
 
 type OrderType struct {
-	Limit *LimitOrderType `json:"limit"`
+	Limit   *LimitOrderType   `json:"limit" json:",omitempty" msgpack:"limit" msgpack:",omitempty"`
+	Trigger *TriggerOrderType `json:"trigger" json:",omitempty"  msgpack:"trigger" msgpack:",omitempty"`
 }
 
 type LimitOrderType struct {
 	Tif string `json:"tif" msgpack:"tif"`
 }
+
+type TriggerOrderType struct {
+	IsMarket  bool   `json:"isMarket" msgpack:"isMarket"`
+	TriggerPx string `json:"triggerPx" msgpack:"triggerPx"`
+	TpSl      TpSl   `json:"tpsl" msgpack:"tpsl"`
+}
+
+type TpSl string
+
+const TriggerTp TpSl = "tp"
+const TriggerSl TpSl = "sl"
+
+type Grouping string
+
+const GroupingNa Grouping = "na"
+const GroupingTpSl Grouping = "positionTpsl"
 
 type RsvSignature struct {
 	R string `json:"r"`
@@ -46,7 +63,7 @@ type Message struct {
 type PlaceOrderAction struct {
 	Type     string      `msgpack:"type" json:"type"`
 	Orders   []OrderWire `msgpack:"orders" json:"orders"`
-	Grouping string      `msgpack:"grouping" json:"grouping"`
+	Grouping Grouping    `msgpack:"grouping" json:"grouping"`
 }
 
 type UpdateLeverageAction struct {
@@ -66,7 +83,8 @@ type OrderWire struct {
 }
 
 type OrderTypeWire struct {
-	Limit *LimitOrderType `json:"limit" msgpack:"limit"`
+	Limit   *LimitOrderType   `json:"limit,omitempty" msgpack:"limit,omitempty"`
+	Trigger *TriggerOrderType `json:"trigger,omitempty" msgpack:"trigger,omitempty"`
 }
 
 type SigRequest struct {
@@ -81,6 +99,15 @@ type CloseRequest struct {
 	Sz       *float64
 	Slippage *float64
 	Cloid    *string
+}
+
+type TriggerRequest struct {
+	Coin     string
+	Px       *float64
+	Sz       *float64
+	Slippage *float64
+	Cloid    *string
+	Trigger  TriggerOrderType
 }
 
 type OpenRequest struct {

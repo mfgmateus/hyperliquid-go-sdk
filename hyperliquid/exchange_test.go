@@ -21,8 +21,9 @@ func TestMarketOpenAndClose(t *testing.T) {
 
 	size := 2.0
 
+	const coin = "ARB"
 	req := OpenRequest{
-		Coin: "ARB",
+		Coin: coin,
 		Sz:   &size,
 	}
 
@@ -32,11 +33,13 @@ func TestMarketOpenAndClose(t *testing.T) {
 	fmt.Printf("Open Result is %s", m)
 
 	closeReq := CloseRequest{
-		Coin: "ARB",
+		Coin: coin,
 	}
 
 	//wait for 2 seconds?
 	time.Sleep(time.Duration(time.Duration.Seconds(2)))
+
+	//place a take profit order
 
 	result = exchangeApi.MarketClose(closeReq)
 	m, _ = json.Marshal(result)
@@ -70,6 +73,31 @@ func TestUpdateLeverage(t *testing.T) {
 	}
 
 	result := exchangeApi.UpdateLeverage(req)
+	m, _ := json.Marshal(result)
+
+	fmt.Printf("Result is %s", m)
+
+}
+
+func TestTrigger(t *testing.T) {
+
+	triggerPrice := 1.8596
+	decimals := 4
+	slippage := float64(0)
+	price := float64(0)
+
+	req := TriggerRequest{
+		Coin:     "ARB",
+		Px:       &price,
+		Slippage: &slippage,
+		Trigger: TriggerOrderType{
+			TriggerPx: FloatToWire(triggerPrice, &decimals),
+			TpSl:      TriggerTp,
+			IsMarket:  true,
+		},
+	}
+
+	result := exchangeApi.Trigger(req)
 	m, _ := json.Marshal(result)
 
 	fmt.Printf("Result is %s", m)

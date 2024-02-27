@@ -36,7 +36,7 @@ func (a *APIDefault) Post(path string, payload any) any {
 	if err != nil {
 		panic(err)
 	}
-	var result map[string]interface{}
+	var result any
 	fmt.Printf("Resp status: %s\n", resp.Status)
 
 	errConversion := json.NewDecoder(resp.Body).Decode(&result)
