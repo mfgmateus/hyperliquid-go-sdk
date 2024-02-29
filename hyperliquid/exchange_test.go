@@ -19,7 +19,7 @@ var (
 
 func TestMarketOpenAndClose(t *testing.T) {
 
-	size := 2.0
+	size := 10.0
 
 	const coin = "ARB"
 	req := OpenRequest{
@@ -42,6 +42,7 @@ func TestMarketOpenAndClose(t *testing.T) {
 	//place a take profit order
 
 	result = exchangeApi.MarketClose(closeReq)
+	fmt.Printf("%s\n", *result.GetAvgPrice())
 	m, _ = json.Marshal(result)
 
 	fmt.Printf("Close Result is %s", m)
@@ -58,6 +59,7 @@ func TestMarketClose(t *testing.T) {
 	}
 
 	result := exchangeApi.MarketClose(req)
+	fmt.Printf("%s\n", *result.GetAvgPrice())
 	m, _ := json.Marshal(result)
 
 	fmt.Printf("Result is %s", m)

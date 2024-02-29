@@ -14,7 +14,7 @@ type OrderRequest struct {
 	LimitPx    float64   `json:"limit_px"`
 	OrderType  OrderType `json:"order_type"`
 	ReduceOnly bool      `json:"reduce_only"`
-	Cloid      *string   `json:"cloid"`
+	Cloid      *string   `json:"cloid,omitempty"`
 }
 
 type OrderType struct {
@@ -80,6 +80,7 @@ type OrderWire struct {
 	SizePx     string        `msgpack:"s" json:"s"`
 	ReduceOnly bool          `msgpack:"r" json:"r"`
 	OrderType  OrderTypeWire `msgpack:"t" json:"t"`
+	Cloid      *string       `msgpack:"c,omitempty" json:"c,omitempty"`
 }
 
 type OrderTypeWire struct {
@@ -128,6 +129,43 @@ type UpdateLeverageRequest struct {
 type PlaceOrderResponse struct {
 	Status   string         `json:"status"`
 	Response *InnerResponse `json:"response"`
+}
+
+type OrderStatus string
+
+const (
+	OrderStatusFilled OrderStatus = "FILLED"
+	OrderStatusOpen   OrderStatus = "OPEN"
+	OrderStatusFailed OrderStatus = "FAILED"
+)
+
+func (r PlaceOrderResponse) GetAvgPrice() *string {
+	for _, status := range r.Response.Data.Statuses {
+		if status.Filled != nil {
+			return &status.Filled.AvgPx
+		} else {
+			return nil
+		}
+	}
+	return nil
+}
+
+func (r PlaceOrderResponse) GetStatus() OrderStatus {
+	if r.Status != "ok" {
+		return OrderStatusFailed
+	}
+	for _, status := range r.Response.Data.Statuses {
+		if status.Error != nil {
+			return OrderStatusFailed
+		}
+		if status.Filled != nil {
+			return OrderStatusFilled
+		}
+		if status.Resting != nil {
+			return OrderStatusOpen
+		}
+	}
+	return OrderStatusOpen
 }
 
 type InnerResponse struct {
