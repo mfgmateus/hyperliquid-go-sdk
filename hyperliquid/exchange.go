@@ -19,6 +19,7 @@ type ExchangeApi interface {
 	MarketClose(req CloseRequest) *PlaceOrderResponse
 	Trigger(req TriggerRequest) *PlaceOrderResponse
 	Order(req OrderRequest, grouping Grouping) *PlaceOrderResponse
+	FindOrder(address string, cloid string) OrderResponse
 	UpdateLeverage(req UpdateLeverageRequest) any
 }
 
@@ -286,6 +287,10 @@ func (e *ExchangeImpl) UpdateLeverage(request UpdateLeverageRequest) any {
 
 	res := (*e.cli).Post("/exchange", payload)
 	return res
+}
+
+func (e *ExchangeImpl) FindOrder(address string, cloid string) OrderResponse {
+	return e.infoApi.FindOrder(address, cloid)
 }
 
 func GetNonce() int64 {

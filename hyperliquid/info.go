@@ -7,6 +7,7 @@ import (
 
 type InfoApi interface {
 	GetUserState(address string) UserState
+	FindOrder(address string, cloid string) OrderResponse
 	GetAllMids() map[string]string
 	GetMktPx(coin string) float64
 	GetMeta() Meta
@@ -58,8 +59,9 @@ type GetUserStateRequest struct {
 }
 
 type GetInfoRequest struct {
-	User  string `json:"user"`
-	Typez string `json:"type"`
+	User  string  `json:"user"`
+	Typez string  `json:"type"`
+	Oid   *string `json:"oid,omitempty"`
 }
 
 type MarginSummary struct {
@@ -108,6 +110,19 @@ func (api *InfoApiDefault) GetMeta() Meta {
 	anyResult := (*api.apiClient).Post("/info", request)
 	parsed, _ := json.Marshal(anyResult)
 	var result Meta
+	_ = json.Unmarshal(parsed, &result)
+	return result
+}
+
+func (api *InfoApiDefault) FindOrder(address string, cloid string) OrderResponse {
+	request := GetInfoRequest{
+		User:  address,
+		Typez: "orderStatus",
+		Oid:   &cloid,
+	}
+	anyResult := (*api.apiClient).Post("/info", request)
+	parsed, _ := json.Marshal(anyResult)
+	var result OrderResponse
 	_ = json.Unmarshal(parsed, &result)
 	return result
 }

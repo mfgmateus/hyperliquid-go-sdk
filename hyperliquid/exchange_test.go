@@ -20,20 +20,28 @@ var (
 func TestMarketOpenAndClose(t *testing.T) {
 
 	size := 10.0
+	cloid := GetRandomCloid()
 
 	const coin = "ARB"
 	req := OpenRequest{
-		Coin: coin,
-		Sz:   &size,
+		Coin:  coin,
+		Sz:    &size,
+		Cloid: &cloid,
 	}
 
 	result := exchangeApi.MarketOpen(req)
 	m, _ := json.Marshal(result)
+	fmt.Printf("Open Result is %s\n", m)
 
-	fmt.Printf("Open Result is %s", m)
+	r2 := exchangeApi.FindOrder(Address, cloid)
+	m, _ = json.Marshal(r2)
+	fmt.Printf("Result is %s\n", m)
+
+	cloid = GetRandomCloid()
 
 	closeReq := CloseRequest{
-		Coin: coin,
+		Coin:  coin,
+		Cloid: &cloid,
 	}
 
 	//wait for 2 seconds?
@@ -45,8 +53,10 @@ func TestMarketOpenAndClose(t *testing.T) {
 	fmt.Printf("%s\n", *result.GetAvgPrice())
 	m, _ = json.Marshal(result)
 
-	fmt.Printf("Close Result is %s", m)
-
+	fmt.Printf("Close Result is %s\n", m)
+	r2 = exchangeApi.FindOrder(Address, cloid)
+	m, _ = json.Marshal(r2)
+	fmt.Printf("Result is %s\n", m)
 }
 
 func TestMarketClose(t *testing.T) {
@@ -61,7 +71,10 @@ func TestMarketClose(t *testing.T) {
 	result := exchangeApi.MarketClose(req)
 	fmt.Printf("%s\n", *result.GetAvgPrice())
 	m, _ := json.Marshal(result)
+	fmt.Printf("Result is %s\n", m)
 
+	r2 := exchangeApi.FindOrder(Address, cloid)
+	m, _ = json.Marshal(r2)
 	fmt.Printf("Result is %s", m)
 
 }
@@ -83,10 +96,11 @@ func TestUpdateLeverage(t *testing.T) {
 
 func TestTrigger(t *testing.T) {
 
-	triggerPrice := 1.8596
+	triggerPrice := 2.10
 	decimals := 4
 	slippage := float64(0)
 	price := float64(0)
+	cloid := GetRandomCloid()
 
 	req := TriggerRequest{
 		Coin:     "ARB",
@@ -97,11 +111,15 @@ func TestTrigger(t *testing.T) {
 			TpSl:      TriggerTp,
 			IsMarket:  true,
 		},
+		Cloid: &cloid,
 	}
 
 	result := exchangeApi.Trigger(req)
 	m, _ := json.Marshal(result)
+	fmt.Printf("Trigger Result is %s\n", m)
 
+	r2 := exchangeApi.FindOrder(Address, cloid)
+	m, _ = json.Marshal(r2)
 	fmt.Printf("Result is %s", m)
 
 }

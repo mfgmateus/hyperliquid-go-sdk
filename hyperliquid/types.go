@@ -192,3 +192,29 @@ type FilledStatus struct {
 	AvgPx   string `json:"avgPx"`
 	TotalSz string `json:"totalSz"`
 }
+
+type OrderResponse struct {
+	Order struct {
+		Order struct {
+			Children         []any  `json:"children"`
+			Cloid            string `json:"cloid"`
+			Coin             string `json:"coin"`
+			IsPositionTpsl   bool   `json:"isPositionTpsl"`
+			IsTrigger        bool   `json:"isTrigger"`
+			LimitPx          string `json:"limitPx"`
+			Oid              int64  `json:"oid"`
+			OrderType        string `json:"orderType"`
+			OrigSz           string `json:"origSz"`
+			ReduceOnly       bool   `json:"reduceOnly"`
+			Side             string `json:"side"`
+			Sz               string `json:"sz"`
+			Tif              string `json:"tif"`
+			Timestamp        int64  `json:"timestamp"`
+			TriggerCondition string `json:"triggerCondition"`
+			TriggerPx        string `json:"triggerPx"`
+		} `json:"order"`
+		Status          string `json:"status"`
+		StatusTimestamp int64  `json:"statusTimestamp"`
+	} `json:"order"`
+	Status string `json:"status"`
+}
