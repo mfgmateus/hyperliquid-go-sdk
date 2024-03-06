@@ -4,6 +4,8 @@ import (
 	"encoding/hex"
 	"fmt"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"math/big"
+	"strconv"
 	"strings"
 )
 
@@ -74,12 +76,20 @@ func OrderTypeToWire(orderType OrderType) OrderTypeWire {
 
 func FloatToWire(x float64, szDecimals *int) string {
 	// Format the float with custom decimal places, default is 6
-	decimals := 6
+	//hyperliquid only allows at most 6 digits.
+	bigf := big.NewFloat(x)
+	var maxDecSz uint
 	if szDecimals != nil {
-		decimals = *szDecimals
+		maxDecSz = uint(*szDecimals)
+	} else {
+		intPart, _ := bigf.Int64()
+		intSize := len(strconv.FormatInt(intPart, 10))
+		maxDecSz = uint(4 - intSize)
 	}
 
-	rounded := fmt.Sprintf("%.*f", decimals, x)
+	x, _ = bigf.Float64()
+
+	rounded := fmt.Sprintf("%.*f", maxDecSz, x)
 	for strings.HasSuffix(rounded, "0") {
 		rounded = strings.TrimSuffix(rounded, "0")
 	}

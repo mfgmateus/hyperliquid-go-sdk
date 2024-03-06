@@ -66,6 +66,16 @@ type PlaceOrderAction struct {
 	Grouping Grouping    `msgpack:"grouping" json:"grouping"`
 }
 
+type CancelOrderAction struct {
+	Type    string       `msgpack:"type" json:"type"`
+	Cancels []CancelWire `msgpack:"cancels" json:"cancels"`
+}
+
+type CancelWire struct {
+	Asset int    `msgpack:"asset" json:"asset"`
+	Cloid string `msgpack:"cloid" json:"cloid"`
+}
+
 type UpdateLeverageAction struct {
 	Type     string `msgpack:"type" json:"type"`
 	Asset    int    `msgpack:"asset" json:"asset"`
@@ -131,6 +141,11 @@ type PlaceOrderResponse struct {
 	Response *InnerResponse `json:"response"`
 }
 
+type CancelOrderResponse struct {
+	Status   string              `json:"status"`
+	Response InnerCancelResponse `json:"response"`
+}
+
 type OrderStatus string
 
 const (
@@ -173,8 +188,29 @@ type InnerResponse struct {
 	Data DataResponse `json:"data"`
 }
 
+type InnerCancelResponse struct {
+	Data CancelDataResponse `json:"data"`
+}
+
 type DataResponse struct {
 	Statuses []StatusResponse `json:"statuses"`
+}
+
+type CancelDataResponse struct {
+	Statuses []string `json:"statuses"`
+}
+
+func (r CancelOrderResponse) IsCancelled() bool {
+	if r.Status != "ok" {
+		return false
+	}
+	for _, status := range r.Response.Data.Statuses {
+		if status == "success" {
+			return true
+		}
+		return false
+	}
+	return false
 }
 
 type StatusResponse struct {

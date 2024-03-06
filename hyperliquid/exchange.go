@@ -20,7 +20,9 @@ type ExchangeApi interface {
 	Trigger(req TriggerRequest) *PlaceOrderResponse
 	Order(req OrderRequest, grouping Grouping) *PlaceOrderResponse
 	FindOrder(address string, cloid string) OrderResponse
+	CancelOrder(coin string, cloid string) CancelOrderResponse
 	UpdateLeverage(req UpdateLeverageRequest) any
+	GetMktPx(coin string) float64
 }
 
 type ExchangeImpl struct {
@@ -64,7 +66,7 @@ func (e *ExchangeImpl) SlippagePrice(coin string, isBuy bool, slippage float64, 
 
 	if px == nil || *px <= 0.0 {
 		px = new(float64)
-		parsed := GetMktPx(coin, e)
+		parsed := e.GetMktPx(coin)
 		*px = parsed
 	}
 
@@ -72,7 +74,7 @@ func (e *ExchangeImpl) SlippagePrice(coin string, isBuy bool, slippage float64, 
 
 }
 
-func GetMktPx(coin string, e *ExchangeImpl) float64 {
+func (e *ExchangeImpl) GetMktPx(coin string) float64 {
 	return e.infoApi.GetMktPx(coin)
 }
 
@@ -263,6 +265,38 @@ func (e *ExchangeImpl) BulkOrders(requests []OrderRequest, grouping Grouping) *P
 	_ = json.Unmarshal(m, &response)
 
 	return response
+}
+
+func (e *ExchangeImpl) CancelOrder(coin string, cloid string) CancelOrderResponse {
+	info := e.meta[coin]
+	timestamp := GetNonce()
+	action := CancelOrderAction{
+		Type: "cancelByCloid",
+		Cancels: []CancelWire{
+			{
+				Asset: info.AssetId,
+				Cloid: cloid,
+			},
+		},
+	}
+
+	v, r, s := e.SignL1Action(action, timestamp, (*e.cli).IsMainnet())
+
+	payload := ExchangeRequest{
+		Action:       action,
+		Nonce:        timestamp,
+		Signature:    ToTypedSig(r, s, v),
+		VaultAddress: nil,
+	}
+
+	res := (*e.cli).Post("/exchange", payload)
+	m, _ := json.Marshal(res)
+
+	response := &CancelOrderResponse{}
+
+	_ = json.Unmarshal(m, &response)
+
+	return *response
 }
 
 func (e *ExchangeImpl) UpdateLeverage(request UpdateLeverageRequest) any {

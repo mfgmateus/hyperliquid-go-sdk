@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/mfgmateus/hyperliquid-go-sdk/cryptoutil"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -121,5 +122,35 @@ func TestTrigger(t *testing.T) {
 	r2 := exchangeApi.FindOrder(Address, cloid)
 	m, _ = json.Marshal(r2)
 	fmt.Printf("Result is %s", m)
+
+}
+
+func TestCancel(t *testing.T) {
+
+	cloid := GetRandomCloid()
+	mkPrice := exchangeApi.GetMktPx("ARB")
+	mkPrice = mkPrice * 0.95
+
+	var req = OrderRequest{
+		Coin:       "ARB",
+		IsBuy:      true,
+		LimitPx:    mkPrice,
+		Sz:         10,
+		OrderType:  OrderType{Limit: &LimitOrderType{Tif: "Gtc"}},
+		Cloid:      &cloid,
+		ReduceOnly: false,
+	}
+	result := exchangeApi.Order(req, "na")
+	m, _ := json.Marshal(result)
+	fmt.Printf("Trigger Result is %s\n", m)
+
+	r2 := exchangeApi.CancelOrder("ARB", cloid)
+	m, _ = json.Marshal(r2)
+	fmt.Printf("Result is %s\n", m)
+	fmt.Printf("Result is %s\n", strconv.FormatBool(r2.IsCancelled()))
+
+	r3 := exchangeApi.FindOrder(Address, cloid)
+	m, _ = json.Marshal(r3)
+	fmt.Printf("Result is %s\n", m)
 
 }
