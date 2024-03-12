@@ -66,14 +66,24 @@ type PlaceOrderAction struct {
 	Grouping Grouping    `msgpack:"grouping" json:"grouping"`
 }
 
-type CancelOrderAction struct {
-	Type    string       `msgpack:"type" json:"type"`
-	Cancels []CancelWire `msgpack:"cancels" json:"cancels"`
+type CancelOidOrderAction struct {
+	Type    string          `msgpack:"type" json:"type"`
+	Cancels []CancelOidWire `msgpack:"cancels" json:"cancels"`
 }
 
-type CancelWire struct {
+type CancelCloidOrderAction struct {
+	Type    string            `msgpack:"type" json:"type"`
+	Cancels []CancelCloidWire `msgpack:"cancels" json:"cancels"`
+}
+
+type CancelCloidWire struct {
 	Asset int    `msgpack:"asset" json:"asset"`
 	Cloid string `msgpack:"cloid" json:"cloid"`
+}
+
+type CancelOidWire struct {
+	Asset int `msgpack:"a" json:"a"`
+	Oid   int `msgpack:"o" json:"o"`
 }
 
 type UpdateLeverageAction struct {

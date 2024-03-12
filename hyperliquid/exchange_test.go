@@ -127,9 +127,17 @@ func TestTrigger(t *testing.T) {
 
 func TestCancel(t *testing.T) {
 
-	cloid := GetRandomCloid()
+	//cloid := GetRandomCloid()
 	mkPrice := exchangeApi.GetMktPx("ARB")
-	mkPrice = mkPrice * 0.95
+	mkPrice = mkPrice * 1.05
+	var (
+		cloid  string
+		result *PlaceOrderResponse
+		m      any
+		order  OrderResponse
+	)
+
+	cloid = GetRandomCloid()
 
 	var req = OrderRequest{
 		Coin:       "ARB",
@@ -140,15 +148,45 @@ func TestCancel(t *testing.T) {
 		Cloid:      &cloid,
 		ReduceOnly: false,
 	}
-	result := exchangeApi.Order(req, "na")
-	m, _ := json.Marshal(result)
+
+	result = exchangeApi.Order(req, "na")
+	m, _ = json.Marshal(result)
+	fmt.Printf("Order Result is %s\n", m)
+
+	triggerPrice := mkPrice * 1.5
+	decimals := 4
+	slippage := float64(0)
+	price := float64(0)
+	cloid = GetRandomCloid()
+
+	req2 := TriggerRequest{
+		Coin:     "ARB",
+		Px:       &price,
+		Slippage: &slippage,
+		Trigger: TriggerOrderType{
+			TriggerPx: FloatToWire(triggerPrice, &decimals),
+			TpSl:      TriggerTp,
+			IsMarket:  true,
+		},
+		Cloid: &cloid,
+	}
+
+	result = exchangeApi.Trigger(req2)
+	m, _ = json.Marshal(result)
 	fmt.Printf("Trigger Result is %s\n", m)
+
+	order = exchangeApi.FindOrder(Address, cloid)
 
 	r2 := exchangeApi.CancelOrder("ARB", cloid)
 	m, _ = json.Marshal(r2)
 	fmt.Printf("Result is %s\n", m)
 	fmt.Printf("Result is %s\n", strconv.FormatBool(r2.IsCancelled()))
 
+	r2 = exchangeApi.CancelOrderByOid("ARB", int(order.Order.Order.Oid))
+	m, _ = json.Marshal(r2)
+	fmt.Printf("Result is %s\n", m)
+	fmt.Printf("Result is %s\n", strconv.FormatBool(r2.IsCancelled()))
+	//
 	r3 := exchangeApi.FindOrder(Address, cloid)
 	m, _ = json.Marshal(r3)
 	fmt.Printf("Result is %s\n", m)

@@ -21,6 +21,7 @@ type ExchangeApi interface {
 	Order(req OrderRequest, grouping Grouping) *PlaceOrderResponse
 	FindOrder(address string, cloid string) OrderResponse
 	CancelOrder(coin string, cloid string) CancelOrderResponse
+	CancelOrderByOid(coin string, oid int) CancelOrderResponse
 	UpdateLeverage(req UpdateLeverageRequest) any
 	GetMktPx(coin string) float64
 }
@@ -270,9 +271,9 @@ func (e *ExchangeImpl) BulkOrders(requests []OrderRequest, grouping Grouping) *P
 func (e *ExchangeImpl) CancelOrder(coin string, cloid string) CancelOrderResponse {
 	info := e.meta[coin]
 	timestamp := GetNonce()
-	action := CancelOrderAction{
+	action := CancelCloidOrderAction{
 		Type: "cancelByCloid",
-		Cancels: []CancelWire{
+		Cancels: []CancelCloidWire{
 			{
 				Asset: info.AssetId,
 				Cloid: cloid,
@@ -290,6 +291,39 @@ func (e *ExchangeImpl) CancelOrder(coin string, cloid string) CancelOrderRespons
 	}
 
 	res := (*e.cli).Post("/exchange", payload)
+	m, _ := json.Marshal(res)
+
+	response := &CancelOrderResponse{}
+
+	_ = json.Unmarshal(m, &response)
+
+	return *response
+}
+
+func (e *ExchangeImpl) CancelOrderByOid(coin string, oid int) CancelOrderResponse {
+	info := e.meta[coin]
+	timestamp := GetNonce()
+	action := CancelOidOrderAction{
+		Type: "cancel",
+		Cancels: []CancelOidWire{
+			{
+				Asset: info.AssetId,
+				Oid:   oid,
+			},
+		},
+	}
+
+	v, r, s := e.SignL1Action(action, timestamp, (*e.cli).IsMainnet())
+
+	payload := ExchangeRequest{
+		Action:       action,
+		Nonce:        timestamp,
+		Signature:    ToTypedSig(r, s, v),
+		VaultAddress: nil,
+	}
+
+	res := (*e.cli).Post("/exchange", payload)
+	fmt.Printf("Response for cancel is %s\n", res)
 	m, _ := json.Marshal(res)
 
 	response := &CancelOrderResponse{}
