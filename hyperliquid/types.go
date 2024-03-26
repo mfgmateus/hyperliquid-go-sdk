@@ -266,19 +266,19 @@ type OrderResponse struct {
 }
 
 type OrderFill struct {
-	Cloid         string  `json:"cloid"`
-	ClosedPnl     float64 `json:"closedPnl"`
-	Coin          string  `json:"coin"`
-	Crossed       bool    `json:"crossed"`
-	Dir           string  `json:"dir"`
-	Fee           float64 `json:"fee"`
-	FeeToken      string  `json:"feeToken"`
-	Hash          string  `json:"hash"`
-	Oid           int     `json:"oid"`
-	Px            float64 `json:"px"`
-	Side          string  `json:"side"`
-	StartPosition string  `json:"startPosition"`
-	Sz            string  `json:"sz"`
-	Tid           int64   `json:"tid"`
-	Time          int64   `json:"time"`
+	Cloid         string `json:"cloid"`
+	ClosedPnl     string `json:"closedPnl"`
+	Coin          string `json:"coin"`
+	Crossed       bool   `json:"crossed"`
+	Dir           string `json:"dir"`
+	Fee           string `json:"fee"`
+	FeeToken      string `json:"feeToken"`
+	Hash          string `json:"hash"`
+	Oid           int    `json:"oid"`
+	Px            string `json:"px"`
+	Side          string `json:"side"`
+	StartPosition string `json:"startPosition"`
+	Sz            string `json:"sz"`
+	Tid           int64  `json:"tid"`
+	Time          int64  `json:"time"`
 }
