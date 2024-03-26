@@ -34,7 +34,7 @@ func TestMarketOpenAndClose(t *testing.T) {
 	m, _ := json.Marshal(result)
 	fmt.Printf("Open Result is %s\n", m)
 
-	r2 := exchangeApi.FindOrder(Address, cloid)
+	r2 := exchangeApi.FindOrder(cloid)
 	m, _ = json.Marshal(r2)
 	fmt.Printf("Result is %s\n", m)
 
@@ -55,7 +55,7 @@ func TestMarketOpenAndClose(t *testing.T) {
 	m, _ = json.Marshal(result)
 
 	fmt.Printf("Close Result is %s\n", m)
-	r2 = exchangeApi.FindOrder(Address, cloid)
+	r2 = exchangeApi.FindOrder(cloid)
 	m, _ = json.Marshal(r2)
 	fmt.Printf("Result is %s\n", m)
 }
@@ -74,7 +74,7 @@ func TestMarketClose(t *testing.T) {
 	m, _ := json.Marshal(result)
 	fmt.Printf("Result is %s\n", m)
 
-	r2 := exchangeApi.FindOrder(Address, cloid)
+	r2 := exchangeApi.FindOrder(cloid)
 	m, _ = json.Marshal(r2)
 	fmt.Printf("Result is %s", m)
 
@@ -85,12 +85,20 @@ func TestUpdateLeverage(t *testing.T) {
 	req := UpdateLeverageRequest{
 		Coin:     "ARB",
 		Leverage: 5,
-		IsCross:  true,
+		IsCross:  false,
 	}
 
 	result := exchangeApi.UpdateLeverage(req)
 	m, _ := json.Marshal(result)
 
+	fmt.Printf("Result is %s", m)
+
+}
+
+func TestGetUserFills(t *testing.T) {
+
+	fills := exchangeApi.GetUserFills()
+	m, _ := json.Marshal(fills)
 	fmt.Printf("Result is %s", m)
 
 }
@@ -119,7 +127,7 @@ func TestTrigger(t *testing.T) {
 	m, _ := json.Marshal(result)
 	fmt.Printf("Trigger Result is %s\n", m)
 
-	r2 := exchangeApi.FindOrder(Address, cloid)
+	r2 := exchangeApi.FindOrder(cloid)
 	m, _ = json.Marshal(r2)
 	fmt.Printf("Result is %s", m)
 
@@ -175,7 +183,7 @@ func TestCancel(t *testing.T) {
 	m, _ = json.Marshal(result)
 	fmt.Printf("Trigger Result is %s\n", m)
 
-	order = exchangeApi.FindOrder(Address, cloid)
+	order = exchangeApi.FindOrder(cloid)
 
 	r2 := exchangeApi.CancelOrder("ARB", cloid)
 	m, _ = json.Marshal(r2)
@@ -187,7 +195,7 @@ func TestCancel(t *testing.T) {
 	fmt.Printf("Result is %s\n", m)
 	fmt.Printf("Result is %s\n", strconv.FormatBool(r2.IsCancelled()))
 	//
-	r3 := exchangeApi.FindOrder(Address, cloid)
+	r3 := exchangeApi.FindOrder(cloid)
 	m, _ = json.Marshal(r3)
 	fmt.Printf("Result is %s\n", m)
 

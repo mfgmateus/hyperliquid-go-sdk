@@ -19,11 +19,12 @@ type ExchangeApi interface {
 	MarketClose(req CloseRequest) *PlaceOrderResponse
 	Trigger(req TriggerRequest) *PlaceOrderResponse
 	Order(req OrderRequest, grouping Grouping) *PlaceOrderResponse
-	FindOrder(address string, cloid string) OrderResponse
+	FindOrder(cloid string) OrderResponse
 	CancelOrder(coin string, cloid string) CancelOrderResponse
 	CancelOrderByOid(coin string, oid int) CancelOrderResponse
 	UpdateLeverage(req UpdateLeverageRequest) any
 	GetMktPx(coin string) float64
+	GetUserFills() []OrderFill
 }
 
 type ExchangeImpl struct {
@@ -357,8 +358,13 @@ func (e *ExchangeImpl) UpdateLeverage(request UpdateLeverageRequest) any {
 	return res
 }
 
-func (e *ExchangeImpl) FindOrder(address string, cloid string) OrderResponse {
-	return e.infoApi.FindOrder(address, cloid)
+func (e *ExchangeImpl) FindOrder(cloid string) OrderResponse {
+	return e.infoApi.FindOrder(e.walletAddr, cloid)
+}
+
+func (e *ExchangeImpl) GetUserFills() []OrderFill {
+	return e.infoApi.GetUserFills(e.walletAddr)
+
 }
 
 func GetNonce() int64 {

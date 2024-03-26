@@ -7,6 +7,7 @@ import (
 
 type InfoApi interface {
 	GetUserState(address string) UserState
+	GetUserFills(address string) []OrderFill
 	FindOrder(address string, cloid string) OrderResponse
 	GetAllMids() map[string]string
 	GetMktPx(coin string) float64
@@ -130,4 +131,16 @@ func (api *InfoApiDefault) FindOrder(address string, cloid string) OrderResponse
 func (api *InfoApiDefault) GetMktPx(coin string) float64 {
 	parsed, _ := strconv.ParseFloat(api.GetAllMids()[coin], 32)
 	return parsed
+}
+
+func (api *InfoApiDefault) GetUserFills(address string) []OrderFill {
+	request := GetInfoRequest{
+		User:  address,
+		Typez: "userFills",
+	}
+	anyResult := (*api.apiClient).Post("/info", request)
+	parsed, _ := json.Marshal(anyResult)
+	var result []OrderFill
+	_ = json.Unmarshal(parsed, &result)
+	return result
 }
