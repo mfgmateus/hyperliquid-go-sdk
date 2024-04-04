@@ -22,26 +22,12 @@ import (
 )
 
 const Address = "0x60Cc17b782e9c5f14806663f8F617921275b9720"
-
-// const PrivateKey = "16ec09be5213c662256b65ed5d6059d3dbd5c65ab6f21e7d7878eac291ca0eb1"
 const PrivateKey = "35e02d3d3e6f65dcc37886ab779af1c4e01d4b915a06bdacbcdb4da09497996c"
-
-// created
-//const PrivateKey = "f4982fe7269059bc05578b6e4ae22180c264b2a588c687098e0d157922d54be1"
-
-//receiving wallet
-//Public Key: 0x0409fbe286a3795967e10b0c03251ed4fa5b21f182c313b9b2b0faade23143347d2ed3516aeafacfc830d7525f7f597839ba00a82dc98c86e412d45c42d3f704fb
-//Address: 0xB8592cD51a6d5BE60AE9B331FaaA430Eb321173a
-
-// SAVE BUT DO NOT SHARE THIS (Private Key): 0xf4982fe7269059bc05578b6e4ae22180c264b2a588c687098e0d157922d54be1
-// Public Key: 0x0479a96a69e2276a688aac8a8fc31249015e2c69048253e1722ce8edde7fb8935e745765b20d982137def3c2bd0c65c24ed220f36c4ba7900cb69b908b9e636c24
-//const Address = "0x7DA0b0D07fD410FEeab41026f1c90a463cd18FEc"
 
 var (
 	keyManager  = NewKeyManager(PrivateKey)
 	baseClient  = NewApiDefault(TestnetUrl)
-	secret      = "secret"
-	exchangeApi = NewExchange(&baseClient, &keyManager, secret)
+	exchangeApi = NewExchange(&baseClient, &keyManager)
 )
 
 type SingleKeyManager struct {

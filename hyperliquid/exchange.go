@@ -31,10 +31,9 @@ type ExchangeImpl struct {
 	cli        *API
 	meta       map[string]AssetInfo
 	keyManager *KeyManager
-	secret     string
 }
 
-func NewExchange(cli *API, manager *KeyManager, secret string) ExchangeApi {
+func NewExchange(cli *API, manager *KeyManager) ExchangeApi {
 
 	infoApi := NewInfoApi(cli)
 	meta := BuildMetaMap(infoApi)
@@ -44,7 +43,6 @@ func NewExchange(cli *API, manager *KeyManager, secret string) ExchangeApi {
 		meta:       meta,
 		cli:        cli,
 		keyManager: manager,
-		secret:     secret,
 	}
 }
 
