@@ -7,7 +7,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/signer/core/apitypes"
-	"github.com/mfgmateus/hyperliquid-go-sdk/cryptoutil"
 	"github.com/vmihailenco/msgpack/v5"
 	"math"
 	"strconv"
@@ -18,50 +17,35 @@ type ExchangeApi interface {
 	MarketOpen(req OpenRequest) *PlaceOrderResponse
 	MarketClose(req CloseRequest) *PlaceOrderResponse
 	Trigger(req TriggerRequest) *PlaceOrderResponse
-	Order(req OrderRequest, grouping Grouping) *PlaceOrderResponse
-	FindOrder(cloid string) OrderResponse
-	CancelOrder(coin string, cloid string) CancelOrderResponse
-	CancelOrderByOid(coin string, oid int) CancelOrderResponse
+	Order(address string, req OrderRequest, grouping Grouping) *PlaceOrderResponse
+	FindOrder(address string, cloid string) OrderResponse
+	CancelOrder(address string, coin string, cloid string) CancelOrderResponse
+	CancelOrderByOid(address string, coin string, oid int) CancelOrderResponse
 	UpdateLeverage(req UpdateLeverageRequest) any
 	GetMktPx(coin string) float64
-	GetUserFills() []OrderFill
+	GetUserFills(address string) []OrderFill
 }
 
 type ExchangeImpl struct {
-	pkeyManager cryptoutil.PKeyManager
-	walletAddr  string
-	infoApi     InfoApi
-	cli         *API
-	meta        map[string]AssetInfo
+	infoApi    InfoApi
+	cli        *API
+	meta       map[string]AssetInfo
+	keyManager *KeyManager
+	secret     string
 }
 
-func NewExchange(manager cryptoutil.PKeyManager, walletAddr string, cli *API) ExchangeApi {
+func NewExchange(cli *API, manager *KeyManager, secret string) ExchangeApi {
 
 	infoApi := NewInfoApi(cli)
 	meta := BuildMetaMap(infoApi)
 
 	return &ExchangeImpl{
-		pkeyManager: manager,
-		infoApi:     infoApi,
-		meta:        meta,
-		cli:         cli,
-		walletAddr:  walletAddr,
+		infoApi:    infoApi,
+		meta:       meta,
+		cli:        cli,
+		keyManager: manager,
+		secret:     secret,
 	}
-}
-
-func NewExchangeCustom(manager cryptoutil.PKeyManager, api InfoApi, meta map[string]AssetInfo,
-	walletAddr string, cli *API) ExchangeApi {
-	return &ExchangeImpl{
-		pkeyManager: manager,
-		infoApi:     api,
-		meta:        meta,
-		cli:         cli,
-		walletAddr:  walletAddr,
-	}
-}
-
-func (e *ExchangeImpl) GetAddress() string {
-	return e.pkeyManager.PublicAddress().String()
 }
 
 func (e *ExchangeImpl) SlippagePrice(coin string, isBuy bool, slippage float64, px *float64) float64 {
@@ -131,13 +115,13 @@ func (e *ExchangeImpl) MarketOpen(req OpenRequest) *PlaceOrderResponse {
 		Cloid:      req.Cloid,
 	}
 
-	return e.Order(orderReq, GroupingNa)
+	return e.Order(req.Address, orderReq, GroupingNa)
 
 }
 
 func (e *ExchangeImpl) MarketClose(req CloseRequest) *PlaceOrderResponse {
 
-	positions := e.infoApi.GetUserState(e.walletAddr).AssetPositions
+	positions := e.infoApi.GetUserState(req.Address).AssetPositions
 	slippage := GetSlippage(req.Slippage)
 
 	for _, position := range positions {
@@ -176,7 +160,7 @@ func (e *ExchangeImpl) MarketClose(req CloseRequest) *PlaceOrderResponse {
 			Cloid:      req.Cloid,
 		}
 
-		return e.Order(orderReq, GroupingNa)
+		return e.Order(req.Address, orderReq, GroupingNa)
 
 	}
 
@@ -186,7 +170,7 @@ func (e *ExchangeImpl) MarketClose(req CloseRequest) *PlaceOrderResponse {
 func (e *ExchangeImpl) Trigger(req TriggerRequest) *PlaceOrderResponse {
 
 	slippage := GetSlippage(req.Slippage)
-	positions := e.infoApi.GetUserState(e.walletAddr).AssetPositions
+	positions := e.infoApi.GetUserState(req.Address).AssetPositions
 
 	for _, position := range positions {
 
@@ -220,7 +204,7 @@ func (e *ExchangeImpl) Trigger(req TriggerRequest) *PlaceOrderResponse {
 			Cloid:      req.Cloid,
 		}
 
-		return e.Order(orderReq, GroupingTpSl)
+		return e.Order(req.Address, orderReq, GroupingTpSl)
 
 	}
 
@@ -236,12 +220,12 @@ func GetSlippage(sl *float64) float64 {
 	return slippage
 }
 
-func (e *ExchangeImpl) Order(req OrderRequest, grouping Grouping) *PlaceOrderResponse {
-	return e.BulkOrders([]OrderRequest{req}, grouping)
+func (e *ExchangeImpl) Order(address string, req OrderRequest, grouping Grouping) *PlaceOrderResponse {
+	return e.BulkOrders(address, []OrderRequest{req}, grouping)
 
 }
 
-func (e *ExchangeImpl) BulkOrders(requests []OrderRequest, grouping Grouping) *PlaceOrderResponse {
+func (e *ExchangeImpl) BulkOrders(address string, requests []OrderRequest, grouping Grouping) *PlaceOrderResponse {
 	var wires []OrderWire
 	for _, req := range requests {
 		wires = append(wires, OrderReqToWire(req, e.meta))
@@ -250,7 +234,7 @@ func (e *ExchangeImpl) BulkOrders(requests []OrderRequest, grouping Grouping) *P
 	timestamp := GetNonce()
 	action := OrderWiresToOrderAction(wires, grouping)
 
-	v, r, s := e.SignL1Action(action, timestamp, (*e.cli).IsMainnet())
+	v, r, s := e.SignL1Action(address, action, timestamp, (*e.cli).IsMainnet())
 
 	payload := ExchangeRequest{
 		Action:       action,
@@ -262,6 +246,8 @@ func (e *ExchangeImpl) BulkOrders(requests []OrderRequest, grouping Grouping) *P
 	res := (*e.cli).Post("/exchange", payload)
 	m, _ := json.Marshal(res)
 
+	fmt.Printf("Response is %s\n", m)
+
 	response := &PlaceOrderResponse{}
 
 	_ = json.Unmarshal(m, &response)
@@ -269,7 +255,7 @@ func (e *ExchangeImpl) BulkOrders(requests []OrderRequest, grouping Grouping) *P
 	return response
 }
 
-func (e *ExchangeImpl) CancelOrder(coin string, cloid string) CancelOrderResponse {
+func (e *ExchangeImpl) CancelOrder(address string, coin string, cloid string) CancelOrderResponse {
 	info := e.meta[coin]
 	timestamp := GetNonce()
 	action := CancelCloidOrderAction{
@@ -282,7 +268,7 @@ func (e *ExchangeImpl) CancelOrder(coin string, cloid string) CancelOrderRespons
 		},
 	}
 
-	v, r, s := e.SignL1Action(action, timestamp, (*e.cli).IsMainnet())
+	v, r, s := e.SignL1Action(address, action, timestamp, (*e.cli).IsMainnet())
 
 	payload := ExchangeRequest{
 		Action:       action,
@@ -301,7 +287,7 @@ func (e *ExchangeImpl) CancelOrder(coin string, cloid string) CancelOrderRespons
 	return *response
 }
 
-func (e *ExchangeImpl) CancelOrderByOid(coin string, oid int) CancelOrderResponse {
+func (e *ExchangeImpl) CancelOrderByOid(address string, coin string, oid int) CancelOrderResponse {
 	info := e.meta[coin]
 	timestamp := GetNonce()
 	action := CancelOidOrderAction{
@@ -314,7 +300,7 @@ func (e *ExchangeImpl) CancelOrderByOid(coin string, oid int) CancelOrderRespons
 		},
 	}
 
-	v, r, s := e.SignL1Action(action, timestamp, (*e.cli).IsMainnet())
+	v, r, s := e.SignL1Action(address, action, timestamp, (*e.cli).IsMainnet())
 
 	payload := ExchangeRequest{
 		Action:       action,
@@ -345,7 +331,7 @@ func (e *ExchangeImpl) UpdateLeverage(request UpdateLeverageRequest) any {
 		Leverage: request.Leverage,
 	}
 
-	v, r, s := e.SignL1Action(action, timestamp, (*e.cli).IsMainnet())
+	v, r, s := e.SignL1Action(request.Address, action, timestamp, (*e.cli).IsMainnet())
 
 	payload := ExchangeRequest{
 		Action:       action,
@@ -358,12 +344,12 @@ func (e *ExchangeImpl) UpdateLeverage(request UpdateLeverageRequest) any {
 	return res
 }
 
-func (e *ExchangeImpl) FindOrder(cloid string) OrderResponse {
-	return e.infoApi.FindOrder(e.walletAddr, cloid)
+func (e *ExchangeImpl) FindOrder(address string, cloid string) OrderResponse {
+	return e.infoApi.FindOrder(address, cloid)
 }
 
-func (e *ExchangeImpl) GetUserFills() []OrderFill {
-	return e.infoApi.GetUserFills(e.walletAddr)
+func (e *ExchangeImpl) GetUserFills(address string) []OrderFill {
+	return e.infoApi.GetUserFills(address)
 
 }
 
@@ -371,16 +357,16 @@ func GetNonce() int64 {
 	return time.Now().UnixMilli()
 }
 
-func (e *ExchangeImpl) SignL1Action(action any, timestamp int64, isMainnet bool) (byte, [32]byte, [32]byte) {
+func (e *ExchangeImpl) SignL1Action(address string, action any, timestamp int64, isMainnet bool) (byte, [32]byte, [32]byte) {
 	hash := buildActionHash(action, "", timestamp)
 	message := buildMessage(hash.Bytes(), isMainnet)
-	return e.SignInner(message)
+	return e.SignInner(address, message)
 
 }
 
-func (e *ExchangeImpl) SignInner(message apitypes.TypedDataMessage) (byte, [32]byte, [32]byte) {
+func (e *ExchangeImpl) SignInner(address string, message apitypes.TypedDataMessage) (byte, [32]byte, [32]byte) {
 
-	signer := NewSigner(e.pkeyManager)
+	signer := NewSigner(e.keyManager)
 	req := SigRequest{
 		PrimaryType: "Agent",
 		DType: []apitypes.Type{
@@ -396,7 +382,7 @@ func (e *ExchangeImpl) SignInner(message apitypes.TypedDataMessage) (byte, [32]b
 		DTypeMsg: message,
 	}
 
-	v, r, s, err := signer.Sign(req)
+	v, r, s, err := signer.Sign(address, req)
 
 	if err != nil {
 		fmt.Printf("Error %s", err)

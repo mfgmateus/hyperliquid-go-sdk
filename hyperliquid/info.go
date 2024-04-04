@@ -60,7 +60,7 @@ type GetUserStateRequest struct {
 }
 
 type GetInfoRequest struct {
-	User  string  `json:"user"`
+	User  *string `json:"user,omitempty"`
 	Typez string  `json:"type"`
 	Oid   *string `json:"oid,omitempty"`
 }
@@ -117,7 +117,7 @@ func (api *InfoApiDefault) GetMeta() Meta {
 
 func (api *InfoApiDefault) FindOrder(address string, cloid string) OrderResponse {
 	request := GetInfoRequest{
-		User:  address,
+		User:  &address,
 		Typez: "orderStatus",
 		Oid:   &cloid,
 	}
@@ -135,7 +135,7 @@ func (api *InfoApiDefault) GetMktPx(coin string) float64 {
 
 func (api *InfoApiDefault) GetUserFills(address string) []OrderFill {
 	request := GetInfoRequest{
-		User:  address,
+		User:  &address,
 		Typez: "userFills",
 	}
 	anyResult := (*api.apiClient).Post("/info", request)

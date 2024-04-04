@@ -1,6 +1,9 @@
 package hyperliquid
 
-import "github.com/ethereum/go-ethereum/signer/core/apitypes"
+import (
+	"crypto/ecdsa"
+	"github.com/ethereum/go-ethereum/signer/core/apitypes"
+)
 
 type AssetInfo struct {
 	SzDecimals int
@@ -115,6 +118,7 @@ type SigRequest struct {
 }
 
 type CloseRequest struct {
+	Address  string
 	Coin     string
 	Px       *float64
 	Sz       *float64
@@ -123,6 +127,7 @@ type CloseRequest struct {
 }
 
 type TriggerRequest struct {
+	Address  string
 	Coin     string
 	Px       *float64
 	Sz       *float64
@@ -132,6 +137,7 @@ type TriggerRequest struct {
 }
 
 type OpenRequest struct {
+	Address  string
 	Coin     string
 	IsBuy    bool
 	Px       *float64
@@ -141,6 +147,7 @@ type OpenRequest struct {
 }
 
 type UpdateLeverageRequest struct {
+	Address  string
 	Coin     string
 	IsCross  bool
 	Leverage int
@@ -281,4 +288,8 @@ type OrderFill struct {
 	Sz            string `json:"sz"`
 	Tid           int64  `json:"tid"`
 	Time          int64  `json:"time"`
+}
+
+type KeyManager interface {
+	GetKey(address string) *ecdsa.PrivateKey
 }
