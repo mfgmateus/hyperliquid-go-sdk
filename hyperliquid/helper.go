@@ -3,7 +3,6 @@ package hyperliquid
 import (
 	"crypto/rand"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/signer/core/apitypes"
 	"log"
 )
@@ -37,11 +36,12 @@ func GetContractTypes(req SigRequest) apitypes.Types {
 	return types
 }
 
-func GetDomain() apitypes.TypedDataDomain {
+func GetDomain(req SigRequest) apitypes.TypedDataDomain {
+
 	return apitypes.TypedDataDomain{
 		Name:              "Exchange",
 		Version:           "1",
-		ChainId:           math.NewHexOrDecimal256(ChainId),
+		ChainId:           req.GetChainId(),
 		VerifyingContract: VerifyingContract,
 	}
 }

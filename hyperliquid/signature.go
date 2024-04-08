@@ -25,7 +25,7 @@ func (signer Signer) Sign(address string, req SigRequest) (byte, [32]byte, [32]b
 	)
 
 	types := GetContractTypes(req)
-	domain := GetDomain()
+	domain := GetDomain(req)
 	typedData := apitypes.TypedData{
 		Types:       types,
 		PrimaryType: req.PrimaryType,

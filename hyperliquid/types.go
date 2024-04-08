@@ -2,6 +2,7 @@ package hyperliquid
 
 import (
 	"crypto/ecdsa"
+	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/signer/core/apitypes"
 )
 
@@ -96,6 +97,12 @@ type UpdateLeverageAction struct {
 	Leverage int    `msgpack:"leverage" json:"leverage"`
 }
 
+type WithdrawAction struct {
+	Type    string       `msgpack:"type" json:"type"`
+	Chain   string       `msgpack:"chain" json:"chain"`
+	Payload WithdrawWire `msgpack:"payload" json:"payload"`
+}
+
 type OrderWire struct {
 	Asset      int           `msgpack:"a" json:"a"`
 	IsBuy      bool          `msgpack:"b" json:"b"`
@@ -115,6 +122,19 @@ type SigRequest struct {
 	PrimaryType string
 	DType       []apitypes.Type
 	DTypeMsg    map[string]interface{}
+	IsMainNet   bool
+}
+
+func (req SigRequest) GetChainId() *math.HexOrDecimal256 {
+	if req.PrimaryType == "WithdrawFromBridge2SignPayload" {
+		if req.IsMainNet {
+			return math.NewHexOrDecimal256(int64(42161))
+		} else {
+			return math.NewHexOrDecimal256(int64(421614))
+		}
+	} else {
+		return math.NewHexOrDecimal256(int64(1337))
+	}
 }
 
 type CloseRequest struct {
@@ -146,6 +166,18 @@ type OpenRequest struct {
 	Cloid    *string
 }
 
+type WithdrawRequest struct {
+	Address     string
+	Destination string
+	Amount      float64
+}
+
+type WithdrawWire struct {
+	Destination string `json:"destination"`
+	Amount      string `json:"usd"`
+	Time        int64  `json:"time"`
+}
+
 type UpdateLeverageRequest struct {
 	Address  string
 	Coin     string
@@ -156,6 +188,10 @@ type UpdateLeverageRequest struct {
 type PlaceOrderResponse struct {
 	Status   string         `json:"status"`
 	Response *InnerResponse `json:"response"`
+}
+
+type WithdrawResponse struct {
+	Status string `json:"status"`
 }
 
 type CancelOrderResponse struct {

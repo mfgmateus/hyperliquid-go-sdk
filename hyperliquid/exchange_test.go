@@ -110,7 +110,7 @@ func TestMarketClose(t *testing.T) {
 func TestAccountInfo(t *testing.T) {
 
 	infoApi := NewInfoApi(&baseClient)
-	state := infoApi.GetUserState(Address)
+	state := infoApi.GetUserState("0xbF10658598474f596174B0eB0f65cC4e04359721")
 
 	m, _ := json.Marshal(state)
 	fmt.Printf("Result is %s\n", m)
@@ -167,6 +167,32 @@ func TestTrigger(t *testing.T) {
 	r2 := exchangeApi.FindOrder(Address, cloid)
 	m, _ = json.Marshal(r2)
 	fmt.Printf("Result is %s", m)
+
+}
+
+func TestWithdraw(t *testing.T) {
+
+	infoApi := NewInfoApi(&baseClient)
+	state := infoApi.GetUserState("0xbF10658598474f596174B0eB0f65cC4e04359721")
+
+	m, _ := json.Marshal(state)
+	fmt.Printf("Result is %s\n", m)
+
+	km := NewKeyManager("c7450555aa35d5aa9b230937ec8dd75a469d3a51d1dc42649a2a622e1c123329")
+	exc := NewExchange(&baseClient, &km)
+
+	balance, _ := strconv.ParseFloat(state.Withdrawable, 32)
+	balance = 2.0
+
+	req := WithdrawRequest{
+		Address:     "0xbF10658598474f596174B0eB0f65cC4e04359721",
+		Destination: Address,
+		Amount:      balance,
+	}
+
+	res := exc.Withdraw(req)
+	m, _ = json.Marshal(state)
+	fmt.Printf("Result is %s\n", res)
 
 }
 

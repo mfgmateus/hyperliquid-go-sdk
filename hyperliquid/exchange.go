@@ -24,6 +24,7 @@ type ExchangeApi interface {
 	UpdateLeverage(req UpdateLeverageRequest) any
 	GetMktPx(coin string) float64
 	GetUserFills(address string) []OrderFill
+	Withdraw(request WithdrawRequest) *WithdrawResponse
 }
 
 type ExchangeImpl struct {
@@ -351,6 +352,46 @@ func (e *ExchangeImpl) GetUserFills(address string) []OrderFill {
 
 }
 
+func (e *ExchangeImpl) Withdraw(request WithdrawRequest) *WithdrawResponse {
+
+	timestamp := GetNonce()
+	chain := "ArbitrumTestnet"
+
+	if (*e.cli).IsMainnet() {
+		chain = "Arbitrum"
+	}
+
+	szDecimals := 2
+
+	action := WithdrawAction{
+		Type:  "withdraw2",
+		Chain: chain,
+		Payload: WithdrawWire{
+			Destination: request.Destination,
+			Amount:      FloatToWire(request.Amount, &szDecimals),
+			Time:        timestamp,
+		},
+	}
+
+	v, r, s := e.SignWithdrawAction(request.Address, action, (*e.cli).IsMainnet())
+
+	payload := ExchangeRequest{
+		Action:       action,
+		Nonce:        timestamp,
+		Signature:    ToTypedSig(r, s, v),
+		VaultAddress: nil,
+	}
+
+	res := (*e.cli).Post("/exchange", payload)
+	fmt.Printf("Response is %s\n", res)
+
+	m, _ := json.Marshal(res)
+	response := &WithdrawResponse{}
+	_ = json.Unmarshal(m, &response)
+
+	return response
+}
+
 func GetNonce() int64 {
 	return time.Now().UnixMilli()
 }
@@ -358,11 +399,10 @@ func GetNonce() int64 {
 func (e *ExchangeImpl) SignL1Action(address string, action any, timestamp int64, isMainnet bool) (byte, [32]byte, [32]byte) {
 	hash := buildActionHash(action, "", timestamp)
 	message := buildMessage(hash.Bytes(), isMainnet)
-	return e.SignInner(address, message)
-
+	return e.SignInner(address, message, isMainnet)
 }
 
-func (e *ExchangeImpl) SignInner(address string, message apitypes.TypedDataMessage) (byte, [32]byte, [32]byte) {
+func (e *ExchangeImpl) SignInner(address string, message apitypes.TypedDataMessage, isMainNet bool) (byte, [32]byte, [32]byte) {
 
 	signer := NewSigner(e.keyManager)
 	req := SigRequest{
@@ -377,7 +417,48 @@ func (e *ExchangeImpl) SignInner(address string, message apitypes.TypedDataMessa
 				Type: "bytes32",
 			},
 		},
-		DTypeMsg: message,
+		DTypeMsg:  message,
+		IsMainNet: isMainNet,
+	}
+
+	v, r, s, err := signer.Sign(address, req)
+
+	if err != nil {
+		fmt.Printf("Error %s", err)
+		panic("Failed to sign request")
+	}
+
+	return v, r, s
+
+}
+
+func (e *ExchangeImpl) SignWithdrawAction(address string, action WithdrawAction, mainnet bool) (byte, [32]byte, [32]byte) {
+
+	message := apitypes.TypedDataMessage{
+		"destination": action.Payload.Destination,
+		"usd":         action.Payload.Amount,
+		"time":        strconv.FormatInt(action.Payload.Time, 10),
+	}
+
+	signer := NewSigner(e.keyManager)
+	req := SigRequest{
+		PrimaryType: "WithdrawFromBridge2SignPayload",
+		DType: []apitypes.Type{
+			{
+				Name: "destination",
+				Type: "string",
+			},
+			{
+				Name: "usd",
+				Type: "string",
+			},
+			{
+				Name: "time",
+				Type: "uint64",
+			},
+		},
+		DTypeMsg:  message,
+		IsMainNet: mainnet,
 	}
 
 	v, r, s, err := signer.Sign(address, req)
