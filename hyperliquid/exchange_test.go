@@ -28,6 +28,7 @@ var (
 	keyManager  = NewKeyManager(PrivateKey)
 	baseClient  = NewApiDefault(TestnetUrl)
 	exchangeApi = NewExchange(&baseClient, &keyManager)
+	infoApi     = NewInfoApi(&baseClient)
 )
 
 type SingleKeyManager struct {
@@ -109,10 +110,14 @@ func TestMarketClose(t *testing.T) {
 
 func TestAccountInfo(t *testing.T) {
 
-	infoApi := NewInfoApi(&baseClient)
 	state := infoApi.GetUserState("0xbF10658598474f596174B0eB0f65cC4e04359721")
 
 	m, _ := json.Marshal(state)
+	fmt.Printf("Result is %s\n", m)
+
+	s2 := infoApi.GetWithdrawals("0xbF10658598474f596174B0eB0f65cC4e04359721")
+
+	m, _ = json.Marshal(s2)
 	fmt.Printf("Result is %s\n", m)
 
 }
@@ -134,9 +139,12 @@ func TestUpdateLeverage(t *testing.T) {
 
 func TestGetUserFills(t *testing.T) {
 
-	fills := exchangeApi.GetUserFills(Address)
+	fills := exchangeApi.GetUserFills("0xbF10658598474f596174B0eB0f65cC4e04359721")
 	m, _ := json.Marshal(fills)
-	fmt.Printf("Result is %s", m)
+	fmt.Printf("Result is %s\n", m)
+
+	m0, _ := json.Marshal(fills[0])
+	fmt.Printf("Result is %s\n", m0)
 
 }
 
@@ -191,8 +199,8 @@ func TestWithdraw(t *testing.T) {
 	}
 
 	res := exc.Withdraw(req)
-	m, _ = json.Marshal(state)
-	fmt.Printf("Result is %s\n", res)
+	m, _ = json.Marshal(res)
+	fmt.Printf("Result is %s\n", m)
 
 }
 

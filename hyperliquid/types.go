@@ -192,6 +192,7 @@ type PlaceOrderResponse struct {
 
 type WithdrawResponse struct {
 	Status string `json:"status"`
+	Nonce  int64
 }
 
 type CancelOrderResponse struct {
@@ -335,4 +336,24 @@ type Liquidation struct {
 
 type KeyManager interface {
 	GetKey(address string) *ecdsa.PrivateKey
+}
+
+type NonFundingUpdate struct {
+	Hash  string          `json:"hash"`
+	Time  int64           `json:"time"`
+	Delta NonFundingDelta `json:"delta"`
+}
+
+type NonFundingDelta struct {
+	Type   string  `json:"type"`
+	Amount string  `json:"usdc"`
+	Fee    *string `json:"fee"`
+	Nonce  *int64  `json:"nonce"`
+}
+
+type Withdrawal struct {
+	Hash   string  `json:"hash"`
+	Amount string  `json:"usdc"`
+	Fee    *string `json:"fee"`
+	Nonce  *int64  `json:"nonce"`
 }

@@ -8,6 +8,8 @@ import (
 type InfoApi interface {
 	GetUserState(address string) UserState
 	GetUserFills(address string) []OrderFill
+	GetNonFundingUpdates(address string) []NonFundingUpdate
+	GetWithdrawals(address string) []Withdrawal
 	FindOrder(address string, cloid string) OrderResponse
 	GetAllMids() map[string]string
 	GetMktPx(coin string) float64
@@ -143,4 +145,33 @@ func (api *InfoApiDefault) GetUserFills(address string) []OrderFill {
 	var result []OrderFill
 	_ = json.Unmarshal(parsed, &result)
 	return result
+}
+
+func (api *InfoApiDefault) GetNonFundingUpdates(address string) []NonFundingUpdate {
+	request := GetInfoRequest{
+		User:  &address,
+		Typez: "userNonFundingLedgerUpdates",
+	}
+	anyResult := (*api.apiClient).Post("/info", request)
+	parsed, _ := json.Marshal(anyResult)
+	var result []NonFundingUpdate
+	_ = json.Unmarshal(parsed, &result)
+	return result
+}
+
+func (api *InfoApiDefault) GetWithdrawals(address string) []Withdrawal {
+	var ws []Withdrawal
+	ups := api.GetNonFundingUpdates(address)
+	for _, up := range ups {
+		if up.Delta.Type == "withdraw" {
+			w := Withdrawal{
+				Hash:   up.Hash,
+				Amount: up.Delta.Amount,
+				Fee:    up.Delta.Fee,
+				Nonce:  up.Delta.Nonce,
+			}
+			ws = append(ws, w)
+		}
+	}
+	return ws
 }

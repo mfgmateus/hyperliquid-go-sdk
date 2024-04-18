@@ -388,6 +388,7 @@ func (e *ExchangeImpl) Withdraw(request WithdrawRequest) *WithdrawResponse {
 	m, _ := json.Marshal(res)
 	response := &WithdrawResponse{}
 	_ = json.Unmarshal(m, &response)
+	response.Nonce = timestamp
 
 	return response
 }
