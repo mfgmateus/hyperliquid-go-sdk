@@ -344,11 +344,24 @@ type NonFundingUpdate struct {
 	Delta NonFundingDelta `json:"delta"`
 }
 
+type FundingUpdate struct {
+	Hash  string       `json:"hash"`
+	Time  int64        `json:"time"`
+	Delta FundingDelta `json:"delta"`
+}
+
 type NonFundingDelta struct {
 	Type   string  `json:"type"`
 	Amount string  `json:"usdc"`
 	Fee    *string `json:"fee"`
 	Nonce  *int64  `json:"nonce"`
+}
+
+type FundingDelta struct {
+	Asset       string `json:"coin"`
+	FundingRate string `json:"fundingRate"`
+	Size        string `json:"szi"`
+	UsdcAmount  string `json:"usdc"`
 }
 
 type Withdrawal struct {

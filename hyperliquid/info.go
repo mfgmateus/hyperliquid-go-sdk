@@ -9,6 +9,7 @@ type InfoApi interface {
 	GetUserState(address string) UserState
 	GetUserFills(address string) []OrderFill
 	GetNonFundingUpdates(address string) []NonFundingUpdate
+	GetFundingUpdates(address string) []FundingUpdate
 	GetWithdrawals(address string) []Withdrawal
 	FindOrder(address string, cloid string) OrderResponse
 	GetAllMids() map[string]string
@@ -155,6 +156,18 @@ func (api *InfoApiDefault) GetNonFundingUpdates(address string) []NonFundingUpda
 	anyResult := (*api.apiClient).Post("/info", request)
 	parsed, _ := json.Marshal(anyResult)
 	var result []NonFundingUpdate
+	_ = json.Unmarshal(parsed, &result)
+	return result
+}
+
+func (api *InfoApiDefault) GetFundingUpdates(address string) []FundingUpdate {
+	request := GetInfoRequest{
+		User:  &address,
+		Typez: "userFunding",
+	}
+	anyResult := (*api.apiClient).Post("/info", request)
+	parsed, _ := json.Marshal(anyResult)
+	var result []FundingUpdate
 	_ = json.Unmarshal(parsed, &result)
 	return result
 }
