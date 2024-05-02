@@ -71,7 +71,7 @@ func CalculateSlippage(isBuy bool, px *float64, slippage float64) float64 {
 		*px = *px * (1 - slippage)
 	}
 
-	// Format the float with a precision of 5 significant figures
+	// Format the float with a precision of 6 significant figures
 	pxStr := strconv.FormatFloat(*px, 'g', 5, 64)
 
 	// Convert the formatted string to a float

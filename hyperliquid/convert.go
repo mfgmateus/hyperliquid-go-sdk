@@ -84,7 +84,11 @@ func FloatToWire(x float64, szDecimals *int) string {
 	} else {
 		intPart, _ := bigf.Int64()
 		intSize := len(strconv.FormatInt(intPart, 10))
-		maxDecSz = uint(4 - intSize)
+		if intSize >= 6 {
+			maxDecSz = 0
+		} else {
+			maxDecSz = uint(6 - intSize)
+		}
 	}
 
 	x, _ = bigf.Float64()
