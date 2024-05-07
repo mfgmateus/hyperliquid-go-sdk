@@ -196,7 +196,7 @@ func (e *ExchangeImpl) Trigger(req TriggerRequest) *PlaceOrderResponse {
 		orderReq := OrderRequest{
 			Coin:       req.Coin,
 			IsBuy:      isBuy,
-			Sz:         0,
+			Sz:         *sz,
 			LimitPx:    finalPx,
 			OrderType:  orderType,
 			ReduceOnly: true,
