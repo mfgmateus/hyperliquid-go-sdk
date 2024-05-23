@@ -3,6 +3,7 @@ package hyperliquid
 import (
 	"encoding/json"
 	"strconv"
+	"strings"
 )
 
 type InfoApi interface {
@@ -95,6 +96,11 @@ func (api *InfoApiDefault) GetAllMids() map[string]string {
 	parsed, _ := json.Marshal(anyResult)
 	var result map[string]string
 	_ = json.Unmarshal(parsed, &result)
+
+	for k, v := range result {
+		result[strings.ToUpper(k)] = v
+	}
+
 	return result
 }
 

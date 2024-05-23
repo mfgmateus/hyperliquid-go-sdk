@@ -5,6 +5,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/signer/core/apitypes"
 	"log"
+	"strings"
 )
 
 const MainnetUrl = "https://api.hyperliquid.xyz"
@@ -60,10 +61,12 @@ func GetRandomCloid() string {
 func BuildMetaMap(info InfoApi) map[string]AssetInfo {
 	metaMap := make(map[string]AssetInfo)
 	for index, asset := range info.GetMeta().Universe {
-		metaMap[asset.Name] = AssetInfo{
+		i := AssetInfo{
 			SzDecimals: asset.SzDecimals,
 			AssetId:    index,
 		}
+		metaMap[asset.Name] = i
+		metaMap[strings.ToUpper(asset.Name)] = i
 	}
 	return metaMap
 }

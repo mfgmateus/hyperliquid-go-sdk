@@ -94,6 +94,9 @@ func FloatToWire(x float64, szDecimals *int) string {
 	x, _ = bigf.Float64()
 
 	rounded := fmt.Sprintf("%.*f", maxDecSz, x)
+	if !strings.Contains(rounded, ".") {
+		return rounded
+	}
 	for strings.HasSuffix(rounded, "0") {
 		rounded = strings.TrimSuffix(rounded, "0")
 	}
