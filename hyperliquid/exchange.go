@@ -128,7 +128,7 @@ func (e *ExchangeImpl) MarketClose(req CloseRequest) *PlaceOrderResponse {
 
 		item := position.Position
 
-		if strings.ToLower(req.Coin) != strings.ToLower(item.Coin) {
+		if strings.ToUpper(req.Coin) != strings.ToUpper(item.Coin) {
 			continue
 		}
 
@@ -195,7 +195,7 @@ func (e *ExchangeImpl) Trigger(req TriggerRequest) *PlaceOrderResponse {
 
 		item := position.Position
 
-		if req.Coin != item.Coin {
+		if strings.ToUpper(req.Coin) != strings.ToUpper(item.Coin) {
 			continue
 		}
 
