@@ -10,6 +10,7 @@ import (
 	"github.com/vmihailenco/msgpack/v5"
 	"math"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -127,7 +128,7 @@ func (e *ExchangeImpl) MarketClose(req CloseRequest) *PlaceOrderResponse {
 
 		item := position.Position
 
-		if req.Coin != item.Coin {
+		if strings.ToLower(req.Coin) != strings.ToLower(item.Coin) {
 			continue
 		}
 
@@ -163,7 +164,26 @@ func (e *ExchangeImpl) MarketClose(req CloseRequest) *PlaceOrderResponse {
 
 	}
 
-	return nil
+	err := fmt.Sprintf("No position found for asset %s\n", req.Coin)
+	return buildFailedResponse(err)
+}
+
+func buildFailedResponse(err string) *PlaceOrderResponse {
+	status := StatusResponse{
+		Error: &err,
+	}
+	statuses := make([]StatusResponse, 1)
+	statuses = append(statuses, status)
+
+	return &PlaceOrderResponse{
+		Status: "failed",
+		Response: &InnerResponse{
+			Type: "error",
+			Data: DataResponse{
+				Statuses: statuses,
+			},
+		},
+	}
 }
 
 func (e *ExchangeImpl) Trigger(req TriggerRequest) *PlaceOrderResponse {
@@ -207,7 +227,8 @@ func (e *ExchangeImpl) Trigger(req TriggerRequest) *PlaceOrderResponse {
 
 	}
 
-	return nil
+	err := fmt.Sprintf("No position found for asset %s\n", req.Coin)
+	return buildFailedResponse(err)
 }
 
 func GetSlippage(sl *float64) float64 {
