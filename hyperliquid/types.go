@@ -283,6 +283,15 @@ type FilledStatus struct {
 	TotalSz string `json:"totalSz"`
 }
 
+type OpenOrder struct {
+	Coin      string `json:"coin"`
+	LimitPx   string `json:"limitPx"`
+	Oid       int64  `json:"oid"`
+	Side      string `json:"side"`
+	Sz        string `json:"sz"`
+	Timestamp int64  `json:"timestamp"`
+}
+
 type OrderResponse struct {
 	Order struct {
 		Order struct {

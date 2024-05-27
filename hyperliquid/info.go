@@ -13,6 +13,7 @@ type InfoApi interface {
 	GetFundingUpdates(address string) []FundingUpdate
 	GetWithdrawals(address string) []Withdrawal
 	FindOrder(address string, cloid string) OrderResponse
+	FindOpenOrders(address string) []OpenOrder
 	GetAllMids() map[string]string
 	GetMktPx(coin string) float64
 	GetMeta() Meta
@@ -133,6 +134,18 @@ func (api *InfoApiDefault) FindOrder(address string, cloid string) OrderResponse
 	anyResult := (*api.apiClient).Post("/info", request)
 	parsed, _ := json.Marshal(anyResult)
 	var result OrderResponse
+	_ = json.Unmarshal(parsed, &result)
+	return result
+}
+
+func (api *InfoApiDefault) FindOpenOrders(address string) []OpenOrder {
+	request := GetInfoRequest{
+		User:  &address,
+		Typez: "openOrders",
+	}
+	anyResult := (*api.apiClient).Post("/info", request)
+	parsed, _ := json.Marshal(anyResult)
+	var result []OpenOrder
 	_ = json.Unmarshal(parsed, &result)
 	return result
 }
