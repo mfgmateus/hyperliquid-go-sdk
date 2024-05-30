@@ -98,9 +98,12 @@ type UpdateLeverageAction struct {
 }
 
 type WithdrawAction struct {
-	Type    string       `msgpack:"type" json:"type"`
-	Chain   string       `msgpack:"chain" json:"chain"`
-	Payload WithdrawWire `msgpack:"payload" json:"payload"`
+	Type             string `msgpack:"type" json:"type"`
+	HLChain          string `msgpack:"hyperliquidChain" json:"hyperliquidChain"`
+	SignatureChainId string `msgpack:"signatureChainId" json:"signatureChainId"`
+	Destination      string `msgpack:"destination" json:"destination"`
+	Amount           string `msgpack:"amount" json:"amount"`
+	Time             int64  `msgpack:"time" json:"time"`
 }
 
 type OrderWire struct {
@@ -126,7 +129,7 @@ type SigRequest struct {
 }
 
 func (req SigRequest) GetChainId() *math.HexOrDecimal256 {
-	if req.PrimaryType == "WithdrawFromBridge2SignPayload" {
+	if req.PrimaryType == "HyperliquidTransaction:Withdraw" {
 		if req.IsMainNet {
 			return math.NewHexOrDecimal256(int64(42161))
 		} else {
@@ -174,7 +177,8 @@ type WithdrawRequest struct {
 
 type WithdrawWire struct {
 	Destination string `json:"destination"`
-	Amount      string `json:"usd"`
+	Amount      string `json:"amount"`
+	HLChain     string `json:"hyperliquidChain"`
 	Time        int64  `json:"time"`
 }
 

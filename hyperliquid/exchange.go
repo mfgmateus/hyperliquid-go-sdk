@@ -376,22 +376,23 @@ func (e *ExchangeImpl) GetUserFills(address string) []OrderFill {
 func (e *ExchangeImpl) Withdraw(request WithdrawRequest) *WithdrawResponse {
 
 	timestamp := GetNonce()
-	chain := "ArbitrumTestnet"
+	chain := "Testnet"
+	chainId := "0x66eee"
 
 	if (*e.cli).IsMainnet() {
-		chain = "Arbitrum"
+		chain = "Mainnet"
+		chainId = "0xa4b1"
 	}
 
 	szDecimals := 2
 
 	action := WithdrawAction{
-		Type:  "withdraw2",
-		Chain: chain,
-		Payload: WithdrawWire{
-			Destination: request.Destination,
-			Amount:      FloatToWire(request.Amount, &szDecimals),
-			Time:        timestamp,
-		},
+		Type:             "withdraw3",
+		HLChain:          chain,
+		SignatureChainId: chainId,
+		Amount:           FloatToWire(request.Amount, &szDecimals),
+		Destination:      request.Destination,
+		Time:             timestamp,
 	}
 
 	v, r, s := e.SignWithdrawAction(request.Address, action, (*e.cli).IsMainnet())
@@ -457,21 +458,26 @@ func (e *ExchangeImpl) SignInner(address string, message apitypes.TypedDataMessa
 func (e *ExchangeImpl) SignWithdrawAction(address string, action WithdrawAction, mainnet bool) (byte, [32]byte, [32]byte) {
 
 	message := apitypes.TypedDataMessage{
-		"destination": action.Payload.Destination,
-		"usd":         action.Payload.Amount,
-		"time":        strconv.FormatInt(action.Payload.Time, 10),
+		"hyperliquidChain": action.HLChain,
+		"destination":      action.Destination,
+		"amount":           action.Amount,
+		"time":             strconv.FormatInt(action.Time, 10),
 	}
 
 	signer := NewSigner(e.keyManager)
 	req := SigRequest{
-		PrimaryType: "WithdrawFromBridge2SignPayload",
+		PrimaryType: "HyperliquidTransaction:Withdraw",
 		DType: []apitypes.Type{
+			{
+				Name: "hyperliquidChain",
+				Type: "string",
+			},
 			{
 				Name: "destination",
 				Type: "string",
 			},
 			{
-				Name: "usd",
+				Name: "amount",
 				Type: "string",
 			},
 			{
