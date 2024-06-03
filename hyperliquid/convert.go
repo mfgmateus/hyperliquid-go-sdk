@@ -2,7 +2,6 @@ package hyperliquid
 
 import (
 	"encoding/hex"
-	"fmt"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"math"
 	"math/big"
@@ -97,5 +96,5 @@ func FloatToWire(x float64, szDecimals *int) string {
 	mult := math.Pow(10.0, float64(maxDecSz))
 
 	rounded := math.Floor(x*mult) / mult
-	return fmt.Sprintf("%.*f", maxDecSz, rounded)
+	return strconv.FormatFloat(rounded, 'f', -1, 64)
 }
