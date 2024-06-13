@@ -384,13 +384,14 @@ func (e *ExchangeImpl) Withdraw(request WithdrawRequest) *WithdrawResponse {
 		chainId = "0xa4b1"
 	}
 
+	amount := ConvertTo2Decimals(request.Amount)
 	szDecimals := 2
 
 	action := WithdrawAction{
 		Type:             "withdraw3",
 		HLChain:          chain,
 		SignatureChainId: chainId,
-		Amount:           FloatToWire(request.Amount, &szDecimals),
+		Amount:           FloatToWire(amount, &szDecimals),
 		Destination:      request.Destination,
 		Time:             timestamp,
 	}

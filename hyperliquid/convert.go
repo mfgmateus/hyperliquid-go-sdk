@@ -98,3 +98,7 @@ func FloatToWire(x float64, szDecimals *int) string {
 	rounded := math.Floor(x*mult) / mult
 	return strconv.FormatFloat(rounded, 'f', -1, 64)
 }
+
+func ConvertTo2Decimals(x float64) float64 {
+	return math.Floor(x*100) / 100
+}
