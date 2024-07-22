@@ -99,6 +99,29 @@ func FloatToWire(x float64, szDecimals *int) string {
 	return strconv.FormatFloat(rounded, 'f', -1, 64)
 }
 
+func FloatToWire2(x float64, maxFigure int) string {
+	// Format the float with custom decimal places, default is 6
+	//hyperliquid only allows at most 6 digits.
+
+	bigf := big.NewFloat(x)
+
+	maxDecSz := 0
+
+	intPart, _ := bigf.Int64()
+	intSize := len(strconv.FormatInt(intPart, 10))
+	if intSize >= maxFigure {
+		maxDecSz = 0
+	} else {
+		maxDecSz = maxFigure - intSize
+	}
+
+	x, _ = bigf.Float64()
+	mult := math.Pow(10.0, float64(maxDecSz))
+
+	rounded := math.Floor(x*mult) / mult
+	return strconv.FormatFloat(rounded, 'f', -1, 64)
+}
+
 func ConvertTo2Decimals(x float64) float64 {
 	return math.Floor(x*100) / 100
 }
