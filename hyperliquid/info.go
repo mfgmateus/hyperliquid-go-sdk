@@ -1,22 +1,23 @@
 package hyperliquid
 
 import (
+	"context"
 	"encoding/json"
 	"strconv"
 	"strings"
 )
 
 type InfoApi interface {
-	GetUserState(address string) UserState
-	GetUserFills(address string) []OrderFill
-	GetNonFundingUpdates(address string) []NonFundingUpdate
-	GetFundingUpdates(address string) []FundingUpdate
-	GetWithdrawals(address string) []Withdrawal
-	FindOrder(address string, cloid string) OrderResponse
-	FindOpenOrders(address string) []OpenOrder
-	GetAllMids() map[string]string
-	GetMktPx(coin string) float64
-	GetMeta() Meta
+	GetUserState(ctx context.Context, address string) UserState
+	GetUserFills(ctx context.Context, address string) []OrderFill
+	GetNonFundingUpdates(ctx context.Context, address string) []NonFundingUpdate
+	GetFundingUpdates(ctx context.Context, address string) []FundingUpdate
+	GetWithdrawals(ctx context.Context, address string) []Withdrawal
+	FindOrder(ctx context.Context, address string, cloid string) OrderResponse
+	FindOpenOrders(ctx context.Context, address string) []OpenOrder
+	GetAllMids(ctx context.Context) map[string]string
+	GetMktPx(ctx context.Context, coin string) float64
+	GetMeta(ctx context.Context) Meta
 }
 
 type InfoApiDefault struct {
@@ -77,23 +78,23 @@ type MarginSummary struct {
 	TotalRawUsd     string `json:"totalRawUsd"`
 }
 
-func (api *InfoApiDefault) GetUserState(address string) UserState {
+func (api *InfoApiDefault) GetUserState(ctx context.Context, address string) UserState {
 	request := GetUserStateRequest{
 		User:  address,
 		Typez: "clearinghouseState",
 	}
-	anyResult := (*api.apiClient).Post("/info", request)
+	anyResult := (*api.apiClient).Post(ctx, "/info", request)
 	parsed, _ := json.Marshal(anyResult)
 	var result UserState
 	_ = json.Unmarshal(parsed, &result)
 	return result
 }
 
-func (api *InfoApiDefault) GetAllMids() map[string]string {
+func (api *InfoApiDefault) GetAllMids(ctx context.Context) map[string]string {
 	request := GetInfoRequest{
 		Typez: "allMids",
 	}
-	anyResult := (*api.apiClient).Post("/info", request)
+	anyResult := (*api.apiClient).Post(ctx, "/info", request)
 	parsed, _ := json.Marshal(anyResult)
 	var result map[string]string
 	_ = json.Unmarshal(parsed, &result)
@@ -114,86 +115,86 @@ type Asset struct {
 	SzDecimals int    `json:"szDecimals"`
 }
 
-func (api *InfoApiDefault) GetMeta() Meta {
+func (api *InfoApiDefault) GetMeta(ctx context.Context) Meta {
 	request := GetInfoRequest{
 		Typez: "meta",
 	}
-	anyResult := (*api.apiClient).Post("/info", request)
+	anyResult := (*api.apiClient).Post(ctx, "/info", request)
 	parsed, _ := json.Marshal(anyResult)
 	var result Meta
 	_ = json.Unmarshal(parsed, &result)
 	return result
 }
 
-func (api *InfoApiDefault) FindOrder(address string, cloid string) OrderResponse {
+func (api *InfoApiDefault) FindOrder(ctx context.Context, address string, cloid string) OrderResponse {
 	request := GetInfoRequest{
 		User:  &address,
 		Typez: "orderStatus",
 		Oid:   &cloid,
 	}
-	anyResult := (*api.apiClient).Post("/info", request)
+	anyResult := (*api.apiClient).Post(ctx, "/info", request)
 	parsed, _ := json.Marshal(anyResult)
 	var result OrderResponse
 	_ = json.Unmarshal(parsed, &result)
 	return result
 }
 
-func (api *InfoApiDefault) FindOpenOrders(address string) []OpenOrder {
+func (api *InfoApiDefault) FindOpenOrders(ctx context.Context, address string) []OpenOrder {
 	request := GetInfoRequest{
 		User:  &address,
 		Typez: "openOrders",
 	}
-	anyResult := (*api.apiClient).Post("/info", request)
+	anyResult := (*api.apiClient).Post(ctx, "/info", request)
 	parsed, _ := json.Marshal(anyResult)
 	var result []OpenOrder
 	_ = json.Unmarshal(parsed, &result)
 	return result
 }
 
-func (api *InfoApiDefault) GetMktPx(coin string) float64 {
-	parsed, _ := strconv.ParseFloat(api.GetAllMids()[coin], 32)
+func (api *InfoApiDefault) GetMktPx(ctx context.Context, coin string) float64 {
+	parsed, _ := strconv.ParseFloat(api.GetAllMids(ctx)[coin], 32)
 	return parsed
 }
 
-func (api *InfoApiDefault) GetUserFills(address string) []OrderFill {
+func (api *InfoApiDefault) GetUserFills(ctx context.Context, address string) []OrderFill {
 	request := GetInfoRequest{
 		User:  &address,
 		Typez: "userFills",
 	}
-	anyResult := (*api.apiClient).Post("/info", request)
+	anyResult := (*api.apiClient).Post(ctx, "/info", request)
 	parsed, _ := json.Marshal(anyResult)
 	var result []OrderFill
 	_ = json.Unmarshal(parsed, &result)
 	return result
 }
 
-func (api *InfoApiDefault) GetNonFundingUpdates(address string) []NonFundingUpdate {
+func (api *InfoApiDefault) GetNonFundingUpdates(ctx context.Context, address string) []NonFundingUpdate {
 	request := GetInfoRequest{
 		User:  &address,
 		Typez: "userNonFundingLedgerUpdates",
 	}
-	anyResult := (*api.apiClient).Post("/info", request)
+	anyResult := (*api.apiClient).Post(ctx, "/info", request)
 	parsed, _ := json.Marshal(anyResult)
 	var result []NonFundingUpdate
 	_ = json.Unmarshal(parsed, &result)
 	return result
 }
 
-func (api *InfoApiDefault) GetFundingUpdates(address string) []FundingUpdate {
+func (api *InfoApiDefault) GetFundingUpdates(ctx context.Context, address string) []FundingUpdate {
 	request := GetInfoRequest{
 		User:  &address,
 		Typez: "userFunding",
 	}
-	anyResult := (*api.apiClient).Post("/info", request)
+	anyResult := (*api.apiClient).Post(ctx, "/info", request)
 	parsed, _ := json.Marshal(anyResult)
 	var result []FundingUpdate
 	_ = json.Unmarshal(parsed, &result)
 	return result
 }
 
-func (api *InfoApiDefault) GetWithdrawals(address string) []Withdrawal {
+func (api *InfoApiDefault) GetWithdrawals(ctx context.Context, address string) []Withdrawal {
 	var ws []Withdrawal
-	ups := api.GetNonFundingUpdates(address)
+	ups := api.GetNonFundingUpdates(ctx, address)
 	for _, up := range ups {
 		if up.Delta.Type == "withdraw" {
 			w := Withdrawal{

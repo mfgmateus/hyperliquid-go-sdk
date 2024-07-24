@@ -1,6 +1,7 @@
 package hyperliquid
 
 import (
+	"context"
 	"crypto/rand"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/signer/core/apitypes"
@@ -69,7 +70,7 @@ func GetRandomCloid() string {
 
 func BuildMetaMap(info InfoApi) map[string]AssetInfo {
 	metaMap := make(map[string]AssetInfo)
-	for index, asset := range info.GetMeta().Universe {
+	for index, asset := range info.GetMeta(context.Background()).Universe {
 		i := AssetInfo{
 			SzDecimals: asset.SzDecimals,
 			AssetId:    index,

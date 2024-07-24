@@ -1,6 +1,7 @@
 package hyperliquid
 
 import (
+	"context"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -15,17 +16,17 @@ import (
 )
 
 type ExchangeApi interface {
-	MarketOpen(req OpenRequest) *PlaceOrderResponse
-	MarketClose(req CloseRequest) *PlaceOrderResponse
-	Trigger(req TriggerRequest) *PlaceOrderResponse
-	Order(address string, req OrderRequest, grouping Grouping) *PlaceOrderResponse
-	FindOrder(address string, cloid string) OrderResponse
-	CancelOrder(address string, coin string, cloid string) CancelOrderResponse
-	CancelOrderByOid(address string, coin string, oid int) CancelOrderResponse
-	UpdateLeverage(req UpdateLeverageRequest) any
-	GetMktPx(coin string) float64
-	GetUserFills(address string) []OrderFill
-	Withdraw(request WithdrawRequest) *WithdrawResponse
+	MarketOpen(context context.Context, req OpenRequest) *PlaceOrderResponse
+	MarketClose(context context.Context, req CloseRequest) *PlaceOrderResponse
+	Trigger(context context.Context, req TriggerRequest) *PlaceOrderResponse
+	Order(context context.Context, address string, req OrderRequest, grouping Grouping) *PlaceOrderResponse
+	FindOrder(context context.Context, address string, cloid string) OrderResponse
+	CancelOrder(context context.Context, address string, coin string, cloid string) CancelOrderResponse
+	CancelOrderByOid(context context.Context, address string, coin string, oid int) CancelOrderResponse
+	UpdateLeverage(context context.Context, req UpdateLeverageRequest) any
+	GetMktPx(context context.Context, coin string) float64
+	GetUserFills(context context.Context, address string) []OrderFill
+	Withdraw(context context.Context, request WithdrawRequest) *WithdrawResponse
 }
 
 type ExchangeImpl struct {
@@ -33,9 +34,10 @@ type ExchangeImpl struct {
 	cli        *API
 	meta       map[string]AssetInfo
 	keyManager *KeyManager
+	logger     Logger
 }
 
-func NewExchange(cli *API, manager *KeyManager) ExchangeApi {
+func NewExchange(cli *API, manager *KeyManager, logger Logger) ExchangeApi {
 
 	infoApi := NewInfoApi(cli)
 	meta := BuildMetaMap(infoApi)
@@ -45,26 +47,27 @@ func NewExchange(cli *API, manager *KeyManager) ExchangeApi {
 		meta:       meta,
 		cli:        cli,
 		keyManager: manager,
+		logger:     logger,
 	}
 }
 
-func (e *ExchangeImpl) SlippagePrice(coin string, isBuy bool, slippage float64, px *float64) float64 {
+func (e *ExchangeImpl) SlippagePrice(ctx context.Context, coin string, isBuy bool, slippage float64, px *float64) float64 {
 
 	if px == nil || *px <= 0.0 {
 		px = new(float64)
-		parsed := e.GetMktPx(coin)
+		parsed := e.GetMktPx(ctx, coin)
 		*px = parsed
 	}
 
-	return CalculateSlippage(isBuy, px, slippage)
+	return e.CalculateSlippage(ctx, isBuy, px, slippage)
 
 }
 
-func (e *ExchangeImpl) GetMktPx(coin string) float64 {
-	return e.infoApi.GetMktPx(coin)
+func (e *ExchangeImpl) GetMktPx(ctx context.Context, coin string) float64 {
+	return e.infoApi.GetMktPx(ctx, coin)
 }
 
-func CalculateSlippage(isBuy bool, px *float64, slippage float64) float64 {
+func (e *ExchangeImpl) CalculateSlippage(ctx context.Context, isBuy bool, px *float64, slippage float64) float64 {
 
 	if isBuy {
 		*px = *px * (1 + slippage)
@@ -78,7 +81,7 @@ func CalculateSlippage(isBuy bool, px *float64, slippage float64) float64 {
 	// Convert the formatted string to a float
 	pxFloat, err := strconv.ParseFloat(pxStr, 64)
 	if err != nil {
-		fmt.Println("Error parsing float:", err)
+		e.logger.LogErr(ctx, "Error parsing float", err)
 		panic("Failed to parse")
 	}
 
@@ -94,10 +97,10 @@ func IsBuy(szi float64) bool {
 	}
 }
 
-func (e *ExchangeImpl) MarketOpen(req OpenRequest) *PlaceOrderResponse {
+func (e *ExchangeImpl) MarketOpen(ctx context.Context, req OpenRequest) *PlaceOrderResponse {
 
 	slippage := GetSlippage(req.Slippage)
-	finalPx := e.SlippagePrice(req.Coin, req.IsBuy, slippage, req.Px)
+	finalPx := e.SlippagePrice(ctx, req.Coin, req.IsBuy, slippage, req.Px)
 
 	orderType := OrderType{
 		Limit: &LimitOrderType{
@@ -115,13 +118,13 @@ func (e *ExchangeImpl) MarketOpen(req OpenRequest) *PlaceOrderResponse {
 		Cloid:      req.Cloid,
 	}
 
-	return e.Order(req.Address, orderReq, GroupingNa)
+	return e.Order(ctx, req.Address, orderReq, GroupingNa)
 
 }
 
-func (e *ExchangeImpl) MarketClose(req CloseRequest) *PlaceOrderResponse {
+func (e *ExchangeImpl) MarketClose(ctx context.Context, req CloseRequest) *PlaceOrderResponse {
 
-	positions := e.infoApi.GetUserState(req.Address).AssetPositions
+	positions := e.infoApi.GetUserState(ctx, req.Address).AssetPositions
 	slippage := GetSlippage(req.Slippage)
 
 	for _, position := range positions {
@@ -142,7 +145,7 @@ func (e *ExchangeImpl) MarketClose(req CloseRequest) *PlaceOrderResponse {
 
 		isBuy := IsBuy(szi)
 
-		finalPx := e.SlippagePrice(req.Coin, isBuy, slippage, req.Px)
+		finalPx := e.SlippagePrice(ctx, req.Coin, isBuy, slippage, req.Px)
 
 		orderType := OrderType{
 			Limit: &LimitOrderType{
@@ -160,11 +163,11 @@ func (e *ExchangeImpl) MarketClose(req CloseRequest) *PlaceOrderResponse {
 			Cloid:      req.Cloid,
 		}
 
-		return e.Order(req.Address, orderReq, GroupingNa)
+		return e.Order(ctx, req.Address, orderReq, GroupingNa)
 
 	}
 
-	err := fmt.Sprintf("No position found for asset %s\n", req.Coin)
+	err := fmt.Sprintf("No position found for asset %s", req.Coin)
 	return buildFailedResponse(err)
 }
 
@@ -186,10 +189,10 @@ func buildFailedResponse(err string) *PlaceOrderResponse {
 	}
 }
 
-func (e *ExchangeImpl) Trigger(req TriggerRequest) *PlaceOrderResponse {
+func (e *ExchangeImpl) Trigger(ctx context.Context, req TriggerRequest) *PlaceOrderResponse {
 
 	slippage := GetSlippage(req.Slippage)
-	positions := e.infoApi.GetUserState(req.Address).AssetPositions
+	positions := e.infoApi.GetUserState(ctx, req.Address).AssetPositions
 
 	for _, position := range positions {
 
@@ -207,7 +210,7 @@ func (e *ExchangeImpl) Trigger(req TriggerRequest) *PlaceOrderResponse {
 			*sz = math.Abs(szi)
 		}
 		isBuy := IsBuy(szi)
-		finalPx := e.SlippagePrice(req.Coin, isBuy, slippage, req.Px)
+		finalPx := e.SlippagePrice(ctx, req.Coin, isBuy, slippage, req.Px)
 
 		orderType := OrderType{
 			Trigger: &req.Trigger,
@@ -223,11 +226,11 @@ func (e *ExchangeImpl) Trigger(req TriggerRequest) *PlaceOrderResponse {
 			Cloid:      req.Cloid,
 		}
 
-		return e.Order(req.Address, orderReq, GroupingTpSl)
+		return e.Order(ctx, req.Address, orderReq, GroupingTpSl)
 
 	}
 
-	err := fmt.Sprintf("No position found for asset %s\n", req.Coin)
+	err := fmt.Sprintf("No position found for asset %s", req.Coin)
 	return buildFailedResponse(err)
 }
 
@@ -240,12 +243,12 @@ func GetSlippage(sl *float64) float64 {
 	return slippage
 }
 
-func (e *ExchangeImpl) Order(address string, req OrderRequest, grouping Grouping) *PlaceOrderResponse {
-	return e.BulkOrders(address, []OrderRequest{req}, grouping)
+func (e *ExchangeImpl) Order(context context.Context, address string, req OrderRequest, grouping Grouping) *PlaceOrderResponse {
+	return e.BulkOrders(context, address, []OrderRequest{req}, grouping)
 
 }
 
-func (e *ExchangeImpl) BulkOrders(address string, requests []OrderRequest, grouping Grouping) *PlaceOrderResponse {
+func (e *ExchangeImpl) BulkOrders(ctx context.Context, address string, requests []OrderRequest, grouping Grouping) *PlaceOrderResponse {
 	var wires []OrderWire
 	for _, req := range requests {
 		wires = append(wires, OrderReqToWire(req, e.meta))
@@ -254,7 +257,7 @@ func (e *ExchangeImpl) BulkOrders(address string, requests []OrderRequest, group
 	timestamp := GetNonce()
 	action := OrderWiresToOrderAction(wires, grouping)
 
-	v, r, s := e.SignL1Action(address, action, timestamp, (*e.cli).IsMainnet())
+	v, r, s := e.SignL1Action(ctx, address, action, timestamp, (*e.cli).IsMainnet())
 
 	payload := ExchangeRequest{
 		Action:       action,
@@ -263,10 +266,10 @@ func (e *ExchangeImpl) BulkOrders(address string, requests []OrderRequest, group
 		VaultAddress: nil,
 	}
 
-	res := (*e.cli).Post("/exchange", payload)
+	res := (*e.cli).Post(ctx, "/exchange", payload)
 	m, _ := json.Marshal(res)
 
-	fmt.Printf("Response is %s\n", m)
+	e.logger.LogInfo(ctx, fmt.Sprintf("Response is %s", res))
 
 	response := &PlaceOrderResponse{}
 
@@ -275,7 +278,7 @@ func (e *ExchangeImpl) BulkOrders(address string, requests []OrderRequest, group
 	return response
 }
 
-func (e *ExchangeImpl) CancelOrder(address string, coin string, cloid string) CancelOrderResponse {
+func (e *ExchangeImpl) CancelOrder(ctx context.Context, address string, coin string, cloid string) CancelOrderResponse {
 	info := e.meta[coin]
 	timestamp := GetNonce()
 	action := CancelCloidOrderAction{
@@ -288,7 +291,7 @@ func (e *ExchangeImpl) CancelOrder(address string, coin string, cloid string) Ca
 		},
 	}
 
-	v, r, s := e.SignL1Action(address, action, timestamp, (*e.cli).IsMainnet())
+	v, r, s := e.SignL1Action(ctx, address, action, timestamp, (*e.cli).IsMainnet())
 
 	payload := ExchangeRequest{
 		Action:       action,
@@ -297,7 +300,7 @@ func (e *ExchangeImpl) CancelOrder(address string, coin string, cloid string) Ca
 		VaultAddress: nil,
 	}
 
-	res := (*e.cli).Post("/exchange", payload)
+	res := (*e.cli).Post(ctx, "/exchange", payload)
 	m, _ := json.Marshal(res)
 
 	response := &CancelOrderResponse{}
@@ -307,7 +310,7 @@ func (e *ExchangeImpl) CancelOrder(address string, coin string, cloid string) Ca
 	return *response
 }
 
-func (e *ExchangeImpl) CancelOrderByOid(address string, coin string, oid int) CancelOrderResponse {
+func (e *ExchangeImpl) CancelOrderByOid(ctx context.Context, address string, coin string, oid int) CancelOrderResponse {
 	info := e.meta[coin]
 	timestamp := GetNonce()
 	action := CancelOidOrderAction{
@@ -320,7 +323,7 @@ func (e *ExchangeImpl) CancelOrderByOid(address string, coin string, oid int) Ca
 		},
 	}
 
-	v, r, s := e.SignL1Action(address, action, timestamp, (*e.cli).IsMainnet())
+	v, r, s := e.SignL1Action(ctx, address, action, timestamp, (*e.cli).IsMainnet())
 
 	payload := ExchangeRequest{
 		Action:       action,
@@ -329,8 +332,8 @@ func (e *ExchangeImpl) CancelOrderByOid(address string, coin string, oid int) Ca
 		VaultAddress: nil,
 	}
 
-	res := (*e.cli).Post("/exchange", payload)
-	fmt.Printf("Response for cancel is %s\n", res)
+	res := (*e.cli).Post(ctx, "/exchange", payload)
+	e.logger.LogInfo(ctx, fmt.Sprintf("Response for cancel is %s", res))
 	m, _ := json.Marshal(res)
 
 	response := &CancelOrderResponse{}
@@ -340,7 +343,7 @@ func (e *ExchangeImpl) CancelOrderByOid(address string, coin string, oid int) Ca
 	return *response
 }
 
-func (e *ExchangeImpl) UpdateLeverage(request UpdateLeverageRequest) any {
+func (e *ExchangeImpl) UpdateLeverage(context context.Context, request UpdateLeverageRequest) any {
 
 	timestamp := GetNonce()
 
@@ -351,7 +354,7 @@ func (e *ExchangeImpl) UpdateLeverage(request UpdateLeverageRequest) any {
 		Leverage: request.Leverage,
 	}
 
-	v, r, s := e.SignL1Action(request.Address, action, timestamp, (*e.cli).IsMainnet())
+	v, r, s := e.SignL1Action(context, request.Address, action, timestamp, (*e.cli).IsMainnet())
 
 	payload := ExchangeRequest{
 		Action:       action,
@@ -360,20 +363,20 @@ func (e *ExchangeImpl) UpdateLeverage(request UpdateLeverageRequest) any {
 		VaultAddress: nil,
 	}
 
-	res := (*e.cli).Post("/exchange", payload)
+	res := (*e.cli).Post(context, "/exchange", payload)
 	return res
 }
 
-func (e *ExchangeImpl) FindOrder(address string, cloid string) OrderResponse {
-	return e.infoApi.FindOrder(address, cloid)
+func (e *ExchangeImpl) FindOrder(context context.Context, address string, cloid string) OrderResponse {
+	return e.infoApi.FindOrder(context, address, cloid)
 }
 
-func (e *ExchangeImpl) GetUserFills(address string) []OrderFill {
-	return e.infoApi.GetUserFills(address)
+func (e *ExchangeImpl) GetUserFills(context context.Context, address string) []OrderFill {
+	return e.infoApi.GetUserFills(context, address)
 
 }
 
-func (e *ExchangeImpl) Withdraw(request WithdrawRequest) *WithdrawResponse {
+func (e *ExchangeImpl) Withdraw(context context.Context, request WithdrawRequest) *WithdrawResponse {
 
 	timestamp := GetNonce()
 	chain := "Testnet"
@@ -396,7 +399,7 @@ func (e *ExchangeImpl) Withdraw(request WithdrawRequest) *WithdrawResponse {
 		Time:             timestamp,
 	}
 
-	v, r, s := e.SignWithdrawAction(request.Address, action, (*e.cli).IsMainnet())
+	v, r, s := e.SignWithdrawAction(context, request.Address, action, (*e.cli).IsMainnet())
 
 	payload := ExchangeRequest{
 		Action:       action,
@@ -405,9 +408,8 @@ func (e *ExchangeImpl) Withdraw(request WithdrawRequest) *WithdrawResponse {
 		VaultAddress: nil,
 	}
 
-	res := (*e.cli).Post("/exchange", payload)
-	fmt.Printf("Response is %s\n", res)
-
+	res := (*e.cli).Post(context, "/exchange", payload)
+	e.logger.LogInfo(context, fmt.Sprintf("Response is %s", res))
 	m, _ := json.Marshal(res)
 	response := &WithdrawResponse{}
 	_ = json.Unmarshal(m, &response)
@@ -420,13 +422,13 @@ func GetNonce() int64 {
 	return time.Now().UnixMilli()
 }
 
-func (e *ExchangeImpl) SignL1Action(address string, action any, timestamp int64, isMainnet bool) (byte, [32]byte, [32]byte) {
-	hash := buildActionHash(action, "", timestamp)
+func (e *ExchangeImpl) SignL1Action(ctx context.Context, address string, action any, timestamp int64, isMainnet bool) (byte, [32]byte, [32]byte) {
+	hash := e.buildActionHash(ctx, action, "", timestamp)
 	message := buildMessage(hash.Bytes(), isMainnet)
-	return e.SignInner(address, message, isMainnet)
+	return e.SignInner(ctx, address, message, isMainnet)
 }
 
-func (e *ExchangeImpl) SignInner(address string, message apitypes.TypedDataMessage, isMainNet bool) (byte, [32]byte, [32]byte) {
+func (e *ExchangeImpl) SignInner(ctx context.Context, address string, message apitypes.TypedDataMessage, isMainNet bool) (byte, [32]byte, [32]byte) {
 
 	signer := NewSigner(e.keyManager)
 	req := SigRequest{
@@ -448,7 +450,7 @@ func (e *ExchangeImpl) SignInner(address string, message apitypes.TypedDataMessa
 	v, r, s, err := signer.Sign(address, req)
 
 	if err != nil {
-		fmt.Printf("Error %s", err)
+		e.logger.LogErr(ctx, "Failed to sign request", err)
 		panic("Failed to sign request")
 	}
 
@@ -456,7 +458,7 @@ func (e *ExchangeImpl) SignInner(address string, message apitypes.TypedDataMessa
 
 }
 
-func (e *ExchangeImpl) SignWithdrawAction(address string, action WithdrawAction, mainnet bool) (byte, [32]byte, [32]byte) {
+func (e *ExchangeImpl) SignWithdrawAction(ctx context.Context, address string, action WithdrawAction, mainnet bool) (byte, [32]byte, [32]byte) {
 
 	message := apitypes.TypedDataMessage{
 		"hyperliquidChain": action.HLChain,
@@ -493,7 +495,7 @@ func (e *ExchangeImpl) SignWithdrawAction(address string, action WithdrawAction,
 	v, r, s, err := signer.Sign(address, req)
 
 	if err != nil {
-		fmt.Printf("Error %s", err)
+		e.logger.LogErr(ctx, "Failed to sign request", err)
 		panic("Failed to sign request")
 	}
 
@@ -501,13 +503,14 @@ func (e *ExchangeImpl) SignWithdrawAction(address string, action WithdrawAction,
 
 }
 
-func buildActionHash(action any, vaultAd string, nonce int64) common.Hash {
+func (e *ExchangeImpl) buildActionHash(ctx context.Context, action any, vaultAd string, nonce int64) common.Hash {
 	var (
 		data []byte
 	)
 
 	data, err := msgpack.Marshal(action)
 	if err != nil {
+		e.logger.LogErr(ctx, "Failed to pack the data", err)
 		panic(fmt.Sprintf("Failed to pack the data %s", err))
 	}
 
