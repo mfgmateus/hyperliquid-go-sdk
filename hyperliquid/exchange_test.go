@@ -5,9 +5,10 @@ import (
 	"crypto/ecdsa"
 	"encoding/json"
 	"fmt"
-	"github.com/mfgmateus/hyperliquid-go-sdk/cryptoutil"
+	"github.com/mfgmateus/hyperliquid-go-sdk/v2/cryptoutil"
 	"strconv"
 	"testing"
+	"time"
 )
 
 const Address = "0x60Cc17b782e9c5f14806663f8F617921275b9720"
@@ -40,58 +41,38 @@ func TestMarketOpenAndClose(t *testing.T) {
 	cloid := GetRandomCloid()
 	//
 	const coin = "KPEPE"
-	//req := OpenRequest{
-	//	Address: Address,
-	//	Coin:    coin,
-	//	Sz:      &size,
-	//	Cloid:   &cloid,
-	//	IsBuy:   true,
-	//}
-	req2 := OrderRequest{
+	req := OpenRequest{
+		Address: Address,
 		Coin:    coin,
+		Sz:      &size,
+		Cloid:   &cloid,
 		IsBuy:   true,
-		Sz:      size,
-		LimitPx: 0.013,
-		OrderType: OrderType{
-			Limit: &LimitOrderType{Tif: "Gtc"},
-		},
-		ReduceOnly: false,
-		Cloid:      &cloid,
 	}
 
-	//result := infoApi.FindOpenOrders("0x947405b4ec88092d2C7dE8aa30aB4136Cc452BF8")
-	//m, _ := json.Marshal(result)
-	//fmt.Printf("Open Result is %s\n", m)
-
-	result := exchangeApi.Order(context.Background(), Address, req2, GroupingNa)
+	result := exchangeApi.MarketOpen(context.Background(), req)
 	m, _ := json.Marshal(result)
 	fmt.Printf("Open Result is %s\n", m)
 
-	//r2 := exchangeApi.FindOrder(Address, cloid)
-	//m, _ = json.Marshal(r2)
-	//fmt.Printf("Result is %s\n", m)
-	//
-	//cloid = GetRandomCloid()
-	//
-	//closeReq := CloseRequest{
-	//	Address: "0x88480544ca7B21020c56B3d64FD81E366857Bcac",
-	//	Coin:    "ETH",
-	//	Cloid:   &cloid,
-	//}
-	//
-	//////wait for 2 seconds?
-	////time.Sleep(time.Duration(time.Duration.Seconds(2)))
-	////
-	//////place a take profit order
-	////
-	//result := exchangeApi.MarketClose(closeReq)
-	//fmt.Printf("%s\n", *result.GetAvgPrice())
-	//m, _ := json.Marshal(result)
-	//
-	//fmt.Printf("Close Result is %s\n", m)
-	////r2 = exchangeApi.FindOrder(Address, cloid)
-	////m, _ = json.Marshal(r2)
-	////fmt.Printf("Result is %s\n", m)
+	r2 := exchangeApi.FindOrder(context.Background(), Address, cloid)
+	m, _ = json.Marshal(r2)
+	fmt.Printf("Result is %s\n", m)
+
+	cloid = GetRandomCloid()
+
+	closeReq := CloseRequest{
+		Address: Address,
+		Coin:    coin,
+		Cloid:   &cloid,
+	}
+
+	////wait for 2 seconds?
+	time.Sleep(time.Duration(time.Duration.Seconds(2)))
+
+	result = exchangeApi.MarketClose(context.Background(), closeReq)
+	fmt.Printf("%s\n", *result.GetAvgPrice())
+	m, _ = json.Marshal(result)
+
+	fmt.Printf("Close Result is %s\n", m)
 }
 
 func TestMarketClose(t *testing.T) {
