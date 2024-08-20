@@ -5,10 +5,11 @@ import (
 	"crypto/ecdsa"
 	"encoding/json"
 	"fmt"
-	"github.com/mfgmateus/hyperliquid-go-sdk/v2/cryptoutil"
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/mfgmateus/hyperliquid-go-sdk/v2/cryptoutil"
 )
 
 const Address = "0x60Cc17b782e9c5f14806663f8F617921275b9720"
@@ -105,7 +106,7 @@ func TestAccountInfo(t *testing.T) {
 	amountF, _ := strconv.ParseFloat(state.Withdrawable, 64)
 	amount := ConvertTo2Decimals(amountF)
 	szDecimals := 2
-	wired := FloatToWire(amount, &szDecimals)
+	wired := SizeToWire(amount, szDecimals)
 	fmt.Printf("Wired is %s\n", wired)
 	fmt.Printf("Amount is %.6f\n", amountF)
 }
@@ -150,7 +151,7 @@ func TestTrigger(t *testing.T) {
 		Px:       &price,
 		Slippage: &slippage,
 		Trigger: TriggerOrderType{
-			TriggerPx: FloatToWire(triggerPrice, &decimals),
+			TriggerPx: PriceToWire(triggerPrice, decimals),
 			TpSl:      TriggerTp,
 			IsMarket:  true,
 		},
@@ -254,11 +255,30 @@ func TestCancel(t *testing.T) {
 
 }
 
-func TestFloatToWire(t *testing.T) {
+func TestSizeAndPriceToWire(t *testing.T) {
+	// Simulate require.Equal, to not add a dependency just for this
+	requireEqual := func(t *testing.T, expected, actual string) {
+		if expected != actual {
+			t.Fatalf("Not equal: \n"+
+				"expected: %s\n"+
+				"actual  : %s", expected, actual)
+		}
+	}
 
-	f := 95.23567
-	s := FloatToWire2(f, 5)
+	// for ETH
+	requireEqual(t, "1234.5", PriceToWire(1234.56, 4))
 
-	fmt.Printf("%s\n", s)
+	// for MEW
+	requireEqual(t, "0.00123", PriceToWire(0.00123, 0))
+	requireEqual(t, "0.001234", PriceToWire(0.001234, 0))
+	requireEqual(t, "0.001234", PriceToWire(0.0012345, 0))
 
+	// for ETH
+	requireEqual(t, "16.27", SizeToWire(16.27, 4))
+	requireEqual(t, "16.2755", SizeToWire(16.2755, 4))
+	requireEqual(t, "16.2755", SizeToWire(16.2755002, 4))
+
+	// for MEW
+	requireEqual(t, "2840522", SizeToWire(2840522, 0))
+	requireEqual(t, "2840522", SizeToWire(2840522.1, 0))
 }

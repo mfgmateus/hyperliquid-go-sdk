@@ -5,14 +5,15 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/signer/core/apitypes"
-	"github.com/vmihailenco/msgpack/v5"
 	"math"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/signer/core/apitypes"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 type ExchangeApi interface {
@@ -394,7 +395,7 @@ func (e *ExchangeImpl) Withdraw(context context.Context, request WithdrawRequest
 		Type:             "withdraw3",
 		HLChain:          chain,
 		SignatureChainId: chainId,
-		Amount:           FloatToWire(amount, &szDecimals),
+		Amount:           SizeToWire(amount, szDecimals),
 		Destination:      request.Destination,
 		Time:             timestamp,
 	}
