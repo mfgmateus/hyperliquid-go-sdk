@@ -1,6 +1,7 @@
 package hyperliquid
 
 import (
+	"bytes"
 	"context"
 	"encoding/binary"
 	"encoding/json"
@@ -23,7 +24,7 @@ type ExchangeApi interface {
 	Order(context context.Context, address string, req OrderRequest, grouping Grouping) *PlaceOrderResponse
 	FindOrder(context context.Context, address string, cloid string) OrderResponse
 	CancelOrder(context context.Context, address string, coin string, cloid string) CancelOrderResponse
-	CancelOrderByOid(context context.Context, address string, coin string, oid int) CancelOrderResponse
+	CancelOrderByOid(context context.Context, address string, coin string, oid int64) CancelOrderResponse
 	UpdateLeverage(context context.Context, req UpdateLeverageRequest) any
 	GetMktPx(context context.Context, coin string) float64
 	GetUserFills(context context.Context, address string) []OrderFill
@@ -311,7 +312,7 @@ func (e *ExchangeImpl) CancelOrder(ctx context.Context, address string, coin str
 	return *response
 }
 
-func (e *ExchangeImpl) CancelOrderByOid(ctx context.Context, address string, coin string, oid int) CancelOrderResponse {
+func (e *ExchangeImpl) CancelOrderByOid(ctx context.Context, address string, coin string, oid int64) CancelOrderResponse {
 	info := e.meta[coin]
 	timestamp := GetNonce()
 	action := CancelOidOrderAction{
@@ -509,11 +510,15 @@ func (e *ExchangeImpl) buildActionHash(ctx context.Context, action any, vaultAd 
 		data []byte
 	)
 
-	data, err := msgpack.Marshal(action)
+	var buf bytes.Buffer
+	enc := msgpack.NewEncoder(&buf)
+	enc.UseCompactInts(true)
+	err := enc.Encode(action)
 	if err != nil {
 		e.logger.LogErr(ctx, "Failed to pack the data", err)
 		panic(fmt.Sprintf("Failed to pack the data %s", err))
 	}
+	data = buf.Bytes()
 
 	nonceBytes := make([]byte, 8)
 	binary.BigEndian.PutUint64(nonceBytes, uint64(nonce))
