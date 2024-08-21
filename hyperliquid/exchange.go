@@ -1,18 +1,20 @@
 package hyperliquid
 
 import (
+	"bytes"
 	"context"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/signer/core/apitypes"
-	"github.com/vmihailenco/msgpack/v5"
 	"math"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/signer/core/apitypes"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 type ExchangeApi interface {
@@ -22,7 +24,7 @@ type ExchangeApi interface {
 	Order(context context.Context, address string, req OrderRequest, grouping Grouping) *PlaceOrderResponse
 	FindOrder(context context.Context, address string, cloid string) OrderResponse
 	CancelOrder(context context.Context, address string, coin string, cloid string) CancelOrderResponse
-	CancelOrderByOid(context context.Context, address string, coin string, oid int) CancelOrderResponse
+	CancelOrderByOid(context context.Context, address string, coin string, oid int64) CancelOrderResponse
 	UpdateLeverage(context context.Context, req UpdateLeverageRequest) any
 	GetMktPx(context context.Context, coin string) float64
 	GetUserFills(context context.Context, address string) []OrderFill
@@ -310,7 +312,7 @@ func (e *ExchangeImpl) CancelOrder(ctx context.Context, address string, coin str
 	return *response
 }
 
-func (e *ExchangeImpl) CancelOrderByOid(ctx context.Context, address string, coin string, oid int) CancelOrderResponse {
+func (e *ExchangeImpl) CancelOrderByOid(ctx context.Context, address string, coin string, oid int64) CancelOrderResponse {
 	info := e.meta[coin]
 	timestamp := GetNonce()
 	action := CancelOidOrderAction{
@@ -394,7 +396,7 @@ func (e *ExchangeImpl) Withdraw(context context.Context, request WithdrawRequest
 		Type:             "withdraw3",
 		HLChain:          chain,
 		SignatureChainId: chainId,
-		Amount:           FloatToWire(amount, &szDecimals),
+		Amount:           SizeToWire(amount, szDecimals),
 		Destination:      request.Destination,
 		Time:             timestamp,
 	}
@@ -508,11 +510,15 @@ func (e *ExchangeImpl) buildActionHash(ctx context.Context, action any, vaultAd 
 		data []byte
 	)
 
-	data, err := msgpack.Marshal(action)
+	var buf bytes.Buffer
+	enc := msgpack.NewEncoder(&buf)
+	enc.UseCompactInts(true)
+	err := enc.Encode(action)
 	if err != nil {
 		e.logger.LogErr(ctx, "Failed to pack the data", err)
 		panic(fmt.Sprintf("Failed to pack the data %s", err))
 	}
+	data = buf.Bytes()
 
 	nonceBytes := make([]byte, 8)
 	binary.BigEndian.PutUint64(nonceBytes, uint64(nonce))

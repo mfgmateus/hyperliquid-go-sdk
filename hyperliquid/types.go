@@ -2,6 +2,7 @@ package hyperliquid
 
 import (
 	"crypto/ecdsa"
+
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/signer/core/apitypes"
 )
@@ -86,8 +87,8 @@ type CancelCloidWire struct {
 }
 
 type CancelOidWire struct {
-	Asset int `msgpack:"a" json:"a"`
-	Oid   int `msgpack:"o" json:"o"`
+	Asset int   `msgpack:"a" json:"a"`
+	Oid   int64 `msgpack:"o" json:"o"`
 }
 
 type UpdateLeverageAction struct {
