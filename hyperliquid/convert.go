@@ -2,6 +2,7 @@ package hyperliquid
 
 import (
 	"encoding/hex"
+	"fmt"
 	"math"
 	"math/big"
 	"strconv"
@@ -41,8 +42,18 @@ func OrderWiresToOrderAction(orders []OrderWire, grouping Grouping) PlaceOrderAc
 	}
 }
 
+func ModifyOrderWiresToModifyOrderAction(orders []ModifyOrderWire) ModifyOrdersAction {
+	return ModifyOrdersAction{
+		Type:   "batchModify",
+		Orders: orders,
+	}
+}
+
 func OrderReqToWire(req OrderRequest, meta map[string]AssetInfo) OrderWire {
-	info := meta[req.Coin]
+	info, ok := meta[req.Coin]
+	if !ok {
+		panic(fmt.Sprintf("coin (%v) is not defined in meta table", req.Coin))
+	}
 	return OrderWire{
 		Asset:      info.AssetId,
 		IsBuy:      req.IsBuy,
@@ -51,6 +62,25 @@ func OrderReqToWire(req OrderRequest, meta map[string]AssetInfo) OrderWire {
 		ReduceOnly: req.ReduceOnly,
 		OrderType:  OrderTypeToWire(req.OrderType),
 		Cloid:      req.Cloid,
+	}
+}
+
+func ModifyOrderReqToWire(req ModifyOrderRequest, meta map[string]AssetInfo) ModifyOrderWire {
+	info, ok := meta[req.Coin]
+	if !ok {
+		panic(fmt.Sprintf("coin (%v) is not defined in meta table", req.Coin))
+	}
+	return ModifyOrderWire{
+		OidOrCloid: req.OidOrCloid,
+		Order: OrderWire{
+			Asset:      info.AssetId,
+			IsBuy:      req.IsBuy,
+			LimitPx:    PriceToWire(req.LimitPx, info.SzDecimals),
+			SizePx:     SizeToWire(req.Sz, info.SzDecimals),
+			ReduceOnly: req.ReduceOnly,
+			OrderType:  OrderTypeToWire(req.OrderType),
+			Cloid:      req.Cloid,
+		},
 	}
 }
 
