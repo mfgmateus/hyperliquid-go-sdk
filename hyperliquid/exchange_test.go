@@ -10,15 +10,17 @@ import (
 	"time"
 
 	"github.com/mfgmateus/hyperliquid-go-sdk/v2/cryptoutil"
+	"github.com/stretchr/testify/require"
 )
 
 const Address = "0x60Cc17b782e9c5f14806663f8F617921275b9720"
 const PrivateKey = "35e02d3d3e6f65dcc37886ab779af1c4e01d4b915a06bdacbcdb4da09497996c"
 
 var (
+	logger      = &DefaultLogger{}
 	keyManager  = NewKeyManager(PrivateKey)
-	baseClient  = NewApiDefault(MainnetUrl, &DefaultLogger{})
-	exchangeApi = NewExchange(&baseClient, &keyManager, &DefaultLogger{})
+	baseClient  = NewApiDefault(TestnetUrl, logger)
+	exchangeApi = NewExchange(&baseClient, &keyManager, logger)
 	infoApi     = NewInfoApi(&baseClient)
 )
 
@@ -255,30 +257,189 @@ func TestCancel(t *testing.T) {
 
 }
 
+func TestEditOrder(t *testing.T) {
+	ctx := context.Background()
+	coin := "KPEPE"
+
+	cloid1 := GetRandomCloid()
+	cloid2 := GetRandomCloid()
+	cloid3 := GetRandomCloid()
+
+	// create order
+	exchangeApi.Order(ctx, Address, OrderRequest{
+		Coin:       coin,
+		IsBuy:      true,
+		Sz:         3000,
+		LimitPx:    0.005,
+		OrderType:  OrderType{Limit: &LimitOrderType{Tif: "Alo"}},
+		ReduceOnly: false,
+		Cloid:      &cloid1,
+	}, GroupingNa)
+
+	order := exchangeApi.FindOrder(ctx, Address, cloid1)
+	require.Equal(t, "order", order.Status)
+	require.Equal(t, "open", order.Order.Status)
+	require.Equal(t, "3000.0", order.Order.Order.Sz)
+	require.Equal(t, "0.005", order.Order.Order.LimitPx)
+	require.Equal(t, cloid1, order.Order.Order.Cloid)
+	j, _ := json.Marshal(order)
+	logger.LogInfo(ctx, fmt.Sprintf("initial order: %s", j))
+
+	// modify order by Cloid
+	exchangeApi.ModifyOrder(ctx, Address, ModifyOrderRequest{
+		OidOrCloid: cloid1,
+		Coin:       coin,
+		IsBuy:      true,
+		Sz:         3005,
+		LimitPx:    0.0051,
+		OrderType:  OrderType{Limit: &LimitOrderType{Tif: "Alo"}},
+		ReduceOnly: false,
+		Cloid:      &cloid2,
+	})
+
+	// new order was placed
+	order = exchangeApi.FindOrder(ctx, Address, cloid2)
+	require.Equal(t, "order", order.Status)
+	require.Equal(t, "open", order.Order.Status)
+	require.Equal(t, "3005.0", order.Order.Order.Sz)
+	require.Equal(t, "0.0051", order.Order.Order.LimitPx)
+	require.Equal(t, cloid2, order.Order.Order.Cloid)
+	j, _ = json.Marshal(order)
+	logger.LogInfo(ctx, fmt.Sprintf("modified once order: %s", j))
+
+	// original order is canceled
+	originalOrder := exchangeApi.FindOrder(ctx, Address, cloid1)
+	require.Equal(t, "order", originalOrder.Status)
+	require.Equal(t, "canceled", originalOrder.Order.Status)
+
+	// modify order by Cloid
+	exchangeApi.ModifyOrder(ctx, Address, ModifyOrderRequest{
+		OidOrCloid: order.Order.Order.Oid,
+		Coin:       coin,
+		IsBuy:      true,
+		Sz:         3007,
+		LimitPx:    0.0052,
+		OrderType:  OrderType{Limit: &LimitOrderType{Tif: "Alo"}},
+		ReduceOnly: false,
+		Cloid:      &cloid3,
+	})
+
+	order = exchangeApi.FindOrder(ctx, Address, cloid3)
+	require.Equal(t, "order", order.Status)
+	require.Equal(t, "open", order.Order.Status)
+	require.Equal(t, "3007.0", order.Order.Order.Sz)
+	require.Equal(t, "0.0052", order.Order.Order.LimitPx)
+	require.Equal(t, cloid3, order.Order.Order.Cloid)
+	j, _ = json.Marshal(order)
+	logger.LogInfo(ctx, fmt.Sprintf("modified twice order: %s", j))
+}
+
+func Test_CreateOrder_SizeZero(t *testing.T) {
+	ctx := context.Background()
+	coin := "KPEPE"
+
+	response := exchangeApi.Order(ctx, Address, OrderRequest{
+		Coin:       coin,
+		IsBuy:      true,
+		Sz:         0,
+		LimitPx:    0.005,
+		OrderType:  OrderType{Limit: &LimitOrderType{Tif: "Alo"}},
+		ReduceOnly: false,
+		Cloid:      nil,
+	}, GroupingNa)
+
+	require.Equal(t, 1, len(response.Response.Data.Statuses))
+	require.Equal(t, "Order has zero size.", *response.Response.Data.Statuses[0].Error)
+}
+
+func Test_CreateOrder_OuterError(t *testing.T) {
+	ctx := context.Background()
+
+	// send a payload manually, which has an invalid signature
+	// this should trigger a specific error, like  "User or API Wallet 0xXXXX does not exist"
+	// this error is in the response field, but it's a string
+	// this tests the unmarshalPlaceOrderResponse method, which should set ResponseErr accordingly
+	payload := ExchangeRequest{
+		Action: PlaceOrderAction{
+			Type:     "order",
+			Grouping: GroupingNa,
+			Orders: []OrderWire{
+				{
+					Asset:      0,
+					IsBuy:      true,
+					LimitPx:    "0.005",
+					SizePx:     "0",
+					ReduceOnly: false,
+					OrderType:  OrderTypeWire{Limit: &LimitOrderType{Tif: "Alo"}},
+				},
+			},
+		},
+		Nonce: GetNonce(),
+		Signature: RsvSignature{
+			R: "0xa9a7cf2b26c9fa22b8e943f8bec93dd091b10c9d2f32e9bd98b70edaec9b908e",
+			S: "0x1e2ba41a0a32e1ac23a9e63ede05afd06994f1e269b381d9edfb13c9dd4485ee",
+			V: 27,
+		},
+	}
+	response := baseClient.Post(ctx, "/exchange", payload)
+
+	m, _ := json.Marshal(response)
+	placeOrderResponse, err := unmarshalPlaceOrderResponse(m)
+	require.NoError(t, err)
+	require.Nil(t, placeOrderResponse.Response)
+	require.Contains(t, *placeOrderResponse.ResponseErr, "L1 error: User or API Wallet")
+}
+
+func Test_Cancel_OuterError(t *testing.T) {
+	ctx := context.Background()
+
+	// send a payload manually, which has an invalid signature
+	// this should trigger a specific error, like  "User or API Wallet 0xXXXX does not exist"
+	// this error is in the response field, but it's a string
+	// this tests the unmarshalPlaceOrderResponse method, which should set ResponseErr accordingly
+	payload := ExchangeRequest{
+		Action: CancelCloidOrderAction{
+			Type: "cancelByCloid",
+			Cancels: []CancelCloidWire{
+				{
+					Asset: 0,
+					Cloid: "0x9b0044eced0ed61211de2b46d964e874",
+				},
+			},
+		},
+		Nonce: GetNonce(),
+		Signature: RsvSignature{
+			R: "0xa9a7cf2b26c9fa22b8e943f8bec93dd091b10c9d2f32e9bd98b70edaec9b908e",
+			S: "0x1e2ba41a0a32e1ac23a9e63ede05afd06994f1e269b381d9edfb13c9dd4485ee",
+			V: 27,
+		},
+	}
+	response := baseClient.Post(ctx, "/exchange", payload)
+
+	m, _ := json.Marshal(response)
+	placeOrderResponse, err := unmarshalCancelOrderResponse(m)
+	require.NoError(t, err)
+	require.Nil(t, placeOrderResponse.Response)
+	require.Contains(t, *placeOrderResponse.ResponseErr, "L1 error: User or API Wallet")
+}
+
 func TestSizeAndPriceToWire(t *testing.T) {
 	// Simulate require.Equal, to not add a dependency just for this
-	requireEqual := func(t *testing.T, expected, actual string) {
-		if expected != actual {
-			t.Fatalf("Not equal: \n"+
-				"expected: %s\n"+
-				"actual  : %s", expected, actual)
-		}
-	}
 
 	// for ETH
-	requireEqual(t, "1234.5", PriceToWire(1234.56, 4))
+	require.Equal(t, "1234.5", PriceToWire(1234.56, 4))
 
 	// for MEW
-	requireEqual(t, "0.00123", PriceToWire(0.00123, 0))
-	requireEqual(t, "0.001234", PriceToWire(0.001234, 0))
-	requireEqual(t, "0.001234", PriceToWire(0.0012345, 0))
+	require.Equal(t, "0.00123", PriceToWire(0.00123, 0))
+	require.Equal(t, "0.001234", PriceToWire(0.001234, 0))
+	require.Equal(t, "0.001234", PriceToWire(0.0012345, 0))
 
 	// for ETH
-	requireEqual(t, "16.27", SizeToWire(16.27, 4))
-	requireEqual(t, "16.2755", SizeToWire(16.2755, 4))
-	requireEqual(t, "16.2755", SizeToWire(16.2755002, 4))
+	require.Equal(t, "16.27", SizeToWire(16.27, 4))
+	require.Equal(t, "16.2755", SizeToWire(16.2755, 4))
+	require.Equal(t, "16.2755", SizeToWire(16.2755002, 4))
 
 	// for MEW
-	requireEqual(t, "2840522", SizeToWire(2840522, 0))
-	requireEqual(t, "2840522", SizeToWire(2840522.1, 0))
+	require.Equal(t, "2840522", SizeToWire(2840522, 0))
+	require.Equal(t, "2840522", SizeToWire(2840522.1, 0))
 }

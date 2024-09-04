@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 )
 
@@ -44,9 +45,12 @@ func (a *APIDefault) Post(ctx context.Context, path string, payload any) any {
 	var result any
 	a.logger.LogInfo(ctx, fmt.Sprintf("Resp status: %s", resp.Status))
 
-	errConversion := json.NewDecoder(resp.Body).Decode(&result)
+	// TODO: is this required? All subsequent calls marshal this so that it gets unmarshal-ed in the correct struct afterwards
+	// 		 this is creating friction (1), and the SDK should not panic (2)
+	bytes, _ := io.ReadAll(io.Reader(resp.Body))
+	errConversion := json.Unmarshal(bytes, &result)
 	if errConversion != nil {
-		a.logger.LogErr(ctx, "Failed to parse response body", errConversion)
+		a.logger.LogErr(ctx, fmt.Sprintf("Failed to parse response body: %s", bytes), errConversion)
 		panic("Failed to parse response body")
 	}
 	return result

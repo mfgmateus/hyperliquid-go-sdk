@@ -2,6 +2,8 @@ package hyperliquid
 
 import (
 	"crypto/ecdsa"
+	"encoding/json"
+	"fmt"
 
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/signer/core/apitypes"
@@ -20,6 +22,17 @@ type OrderRequest struct {
 	OrderType  OrderType `json:"order_type"`
 	ReduceOnly bool      `json:"reduce_only"`
 	Cloid      *string   `json:"cloid,omitempty"`
+}
+
+type ModifyOrderRequest struct {
+	OidOrCloid interface{} `json:"oid"`
+	Coin       string      `json:"coin"`
+	IsBuy      bool        `json:"is_buy"`
+	Sz         float64     `json:"sz"`
+	LimitPx    float64     `json:"limit_px"`
+	OrderType  OrderType   `json:"order_type"`
+	ReduceOnly bool        `json:"reduce_only"`
+	Cloid      *string     `json:"cloid,omitempty"`
 }
 
 type OrderType struct {
@@ -71,6 +84,11 @@ type PlaceOrderAction struct {
 	Grouping Grouping    `msgpack:"grouping" json:"grouping"`
 }
 
+type ModifyOrdersAction struct {
+	Type   string            `msgpack:"type" json:"type"`
+	Orders []ModifyOrderWire `msgpack:"modifies" json:"modifies"`
+}
+
 type CancelOidOrderAction struct {
 	Type    string          `msgpack:"type" json:"type"`
 	Cancels []CancelOidWire `msgpack:"cancels" json:"cancels"`
@@ -115,6 +133,12 @@ type OrderWire struct {
 	ReduceOnly bool          `msgpack:"r" json:"r"`
 	OrderType  OrderTypeWire `msgpack:"t" json:"t"`
 	Cloid      *string       `msgpack:"c,omitempty" json:"c,omitempty"`
+}
+
+type ModifyOrderWire struct {
+	// OidOrCloid is either Cloid (string) or Oid int64
+	OidOrCloid interface{} `msgpack:"oid" json:"oid"`
+	Order      OrderWire   `msgpack:"order" json:"order"`
 }
 
 type OrderTypeWire struct {
@@ -190,9 +214,86 @@ type UpdateLeverageRequest struct {
 	Leverage int
 }
 
+// TODO: most probably this should be used by other errors as well
+func unmarshalInnerResponse(data []byte, responseTarget any) (status string, responseErr *string, err error) {
+	// try to unmarshal in generic type, to get the Response field
+	var temp struct {
+		Status   string          `json:"status"`
+		Response json.RawMessage `json:"response"`
+	}
+	err = json.Unmarshal(data, &temp)
+	if err != nil {
+		return "", nil, err
+	}
+
+	// check if response field is string
+	var str string
+	err = json.Unmarshal(temp.Response, &str)
+	if err == nil {
+		return temp.Status, &str, nil
+	}
+
+	// check if response field is responseTarget
+	err = json.Unmarshal(temp.Response, responseTarget)
+	if err != nil {
+		return temp.Status, nil, fmt.Errorf("unable to unmarshal response: %w", err)
+	} else {
+		return temp.Status, nil, nil
+	}
+}
+
+func unmarshalPlaceOrderResponse(data []byte) (response *PlaceOrderResponse, err error) {
+	response = &PlaceOrderResponse{
+		Response: new(InnerResponse),
+	}
+	response.Status, response.ResponseErr, err = unmarshalInnerResponse(data, response.Response)
+	if err != nil {
+		return nil, err
+	}
+	if response.ResponseErr != nil {
+		response.Response = nil
+	}
+	return response, nil
+}
+
+func unmarshalModifyOrderResponse(data []byte) (response *ModifyOrderResponse, err error) {
+	response = &ModifyOrderResponse{
+		Response: new(InnerResponse),
+	}
+	response.Status, response.ResponseErr, err = unmarshalInnerResponse(data, response.Response)
+	if err != nil {
+		return nil, err
+	}
+	if response.ResponseErr != nil {
+		response.Response = nil
+	}
+	return response, nil
+}
+
+func unmarshalCancelOrderResponse(data []byte) (response *CancelOrderResponse, err error) {
+	response = &CancelOrderResponse{
+		Response: new(InnerCancelResponse),
+	}
+	response.Status, response.ResponseErr, err = unmarshalInnerResponse(data, response.Response)
+	if err != nil {
+		return nil, err
+	}
+	if response.ResponseErr != nil {
+		response.Response = nil
+	}
+	return response, nil
+}
+
 type PlaceOrderResponse struct {
-	Status   string         `json:"status"`
-	Response *InnerResponse `json:"response"`
+	Status      string         `json:"status"`
+	ResponseErr *string        // json["response"] is either ResponseErr or Response
+	Response    *InnerResponse // json["response"] is either ResponseErr or Response
+}
+
+type ModifyOrderResponse struct {
+	Status      string         `json:"status"`
+	ResponseErr *string        // json["response"] is either ResponseErr or Response
+	Response    *InnerResponse // json["response"] is either ResponseErr or Response
 }
 
 type WithdrawResponse struct {
@@ -201,8 +302,9 @@ type WithdrawResponse struct {
 }
 
 type CancelOrderResponse struct {
-	Status   string              `json:"status"`
-	Response InnerCancelResponse `json:"response"`
+	Status      string               `json:"status"`
+	ResponseErr *string              // json["response"] is either ResponseErr or Response
+	Response    *InnerCancelResponse // json["response"] is either ResponseErr or Response
 }
 
 type OrderStatus string
@@ -279,11 +381,13 @@ type StatusResponse struct {
 }
 
 type RestingStatus struct {
-	OrderId string `json:"oid"`
+	OrderId int64  `json:"oid"`
+	Cloid   string `json:"cloid"`
 }
 
 type FilledStatus struct {
-	OrderId int    `json:"oid"`
+	OrderId int64  `json:"oid"`
+	Cloid   string `json:"cloid"`
 	AvgPx   string `json:"avgPx"`
 	TotalSz string `json:"totalSz"`
 }

@@ -9,6 +9,7 @@ import (
 	"math"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -23,8 +24,9 @@ type ExchangeApi interface {
 	Trigger(context context.Context, req TriggerRequest) *PlaceOrderResponse
 	Order(context context.Context, address string, req OrderRequest, grouping Grouping) *PlaceOrderResponse
 	FindOrder(context context.Context, address string, cloid string) OrderResponse
-	CancelOrder(context context.Context, address string, coin string, cloid string) CancelOrderResponse
-	CancelOrderByOid(context context.Context, address string, coin string, oid int64) CancelOrderResponse
+	CancelOrder(context context.Context, address string, coin string, cloid string) *CancelOrderResponse
+	CancelOrderByOid(context context.Context, address string, coin string, oid int64) *CancelOrderResponse
+	ModifyOrder(ctx context.Context, address string, request ModifyOrderRequest) *ModifyOrderResponse
 	UpdateLeverage(context context.Context, req UpdateLeverageRequest) any
 	GetMktPx(context context.Context, coin string) float64
 	GetUserFills(context context.Context, address string) []OrderFill
@@ -174,20 +176,9 @@ func (e *ExchangeImpl) MarketClose(ctx context.Context, req CloseRequest) *Place
 }
 
 func buildFailedResponse(err string) *PlaceOrderResponse {
-	status := StatusResponse{
-		Error: &err,
-	}
-	statuses := make([]StatusResponse, 1)
-	statuses = append(statuses, status)
-
 	return &PlaceOrderResponse{
-		Status: "failed",
-		Response: &InnerResponse{
-			Type: "error",
-			Data: DataResponse{
-				Statuses: statuses,
-			},
-		},
+		Status:      "err",
+		ResponseErr: &err,
 	}
 }
 
@@ -273,14 +264,51 @@ func (e *ExchangeImpl) BulkOrders(ctx context.Context, address string, requests 
 
 	e.logger.LogInfo(ctx, fmt.Sprintf("Response is %s", res))
 
-	response := &PlaceOrderResponse{}
-
-	_ = json.Unmarshal(m, &response)
+	response, err := unmarshalPlaceOrderResponse(m)
+	if err != nil {
+		e.logger.LogErr(ctx, "failed to unmarshalPlaceOrderResponse", err)
+		return nil
+	}
 
 	return response
 }
 
-func (e *ExchangeImpl) CancelOrder(ctx context.Context, address string, coin string, cloid string) CancelOrderResponse {
+func (e *ExchangeImpl) ModifyOrder(ctx context.Context, address string, request ModifyOrderRequest) *ModifyOrderResponse {
+	return e.BulkModify(ctx, address, []ModifyOrderRequest{request})
+}
+
+func (e *ExchangeImpl) BulkModify(ctx context.Context, address string, requests []ModifyOrderRequest) *ModifyOrderResponse {
+	var wires []ModifyOrderWire
+	for _, req := range requests {
+		wires = append(wires, ModifyOrderReqToWire(req, e.meta))
+	}
+
+	timestamp := GetNonce()
+	action := ModifyOrderWiresToModifyOrderAction(wires)
+
+	v, r, s := e.SignL1Action(ctx, address, action, timestamp, (*e.cli).IsMainnet())
+
+	payload := ExchangeRequest{
+		Action:       action,
+		Nonce:        timestamp,
+		Signature:    ToTypedSig(r, s, v),
+		VaultAddress: nil,
+	}
+	res := (*e.cli).Post(ctx, "/exchange", payload)
+	m, _ := json.Marshal(res)
+
+	e.logger.LogInfo(ctx, fmt.Sprintf("response is %s", res))
+
+	response, err := unmarshalModifyOrderResponse(m)
+	if err != nil {
+		e.logger.LogErr(ctx, "failed to unmarshalModifyOrderResponse", err)
+		return nil
+	}
+
+	return response
+}
+
+func (e *ExchangeImpl) CancelOrder(ctx context.Context, address string, coin string, cloid string) *CancelOrderResponse {
 	info := e.meta[coin]
 	timestamp := GetNonce()
 	action := CancelCloidOrderAction{
@@ -301,18 +329,21 @@ func (e *ExchangeImpl) CancelOrder(ctx context.Context, address string, coin str
 		Signature:    ToTypedSig(r, s, v),
 		VaultAddress: nil,
 	}
-
 	res := (*e.cli).Post(ctx, "/exchange", payload)
 	m, _ := json.Marshal(res)
 
-	response := &CancelOrderResponse{}
+	e.logger.LogInfo(ctx, fmt.Sprintf("response is %s", res))
 
-	_ = json.Unmarshal(m, &response)
+	response, err := unmarshalCancelOrderResponse(m)
+	if err != nil {
+		e.logger.LogErr(ctx, "failed to unmarshalModifyOrderResponse", err)
+		return nil
+	}
 
-	return *response
+	return response
 }
 
-func (e *ExchangeImpl) CancelOrderByOid(ctx context.Context, address string, coin string, oid int64) CancelOrderResponse {
+func (e *ExchangeImpl) CancelOrderByOid(ctx context.Context, address string, coin string, oid int64) *CancelOrderResponse {
 	info := e.meta[coin]
 	timestamp := GetNonce()
 	action := CancelOidOrderAction{
@@ -335,14 +366,17 @@ func (e *ExchangeImpl) CancelOrderByOid(ctx context.Context, address string, coi
 	}
 
 	res := (*e.cli).Post(ctx, "/exchange", payload)
-	e.logger.LogInfo(ctx, fmt.Sprintf("Response for cancel is %s", res))
 	m, _ := json.Marshal(res)
 
-	response := &CancelOrderResponse{}
+	e.logger.LogInfo(ctx, fmt.Sprintf("response is %s", res))
 
-	_ = json.Unmarshal(m, &response)
+	response, err := unmarshalCancelOrderResponse(m)
+	if err != nil {
+		e.logger.LogErr(ctx, "failed to unmarshalModifyOrderResponse", err)
+		return nil
+	}
 
-	return *response
+	return response
 }
 
 func (e *ExchangeImpl) UpdateLeverage(context context.Context, request UpdateLeverageRequest) any {
@@ -420,8 +454,25 @@ func (e *ExchangeImpl) Withdraw(context context.Context, request WithdrawRequest
 	return response
 }
 
+var lastNonce *int64
+var lastNonceMu sync.Mutex
+
+// GetNonce is thread safe and makes sure that all nonces are increasing, even if called in the same millisecond
 func GetNonce() int64 {
-	return time.Now().UnixMilli()
+	lastNonceMu.Lock()
+	defer lastNonceMu.Unlock()
+
+	nonce := time.Now().UnixMilli()
+	if lastNonce == nil {
+		lastNonce = &nonce
+		return nonce
+	} else if *lastNonce >= nonce {
+		*lastNonce += 1
+		return *lastNonce
+	} else {
+		lastNonce = &nonce
+		return nonce
+	}
 }
 
 func (e *ExchangeImpl) SignL1Action(ctx context.Context, address string, action any, timestamp int64, isMainnet bool) (byte, [32]byte, [32]byte) {
