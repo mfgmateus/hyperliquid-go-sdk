@@ -23,7 +23,7 @@ type ExchangeApi interface {
 	MarketClose(context context.Context, req CloseRequest) *PlaceOrderResponse
 	Trigger(context context.Context, req TriggerRequest) *PlaceOrderResponse
 	Order(context context.Context, address string, req OrderRequest, grouping Grouping) *PlaceOrderResponse
-	Points(context context.Context, address string) any
+	Points(context context.Context, address string) PointsResponse
 	FindOrder(context context.Context, address string, cloid string) OrderResponse
 	CancelOrder(context context.Context, address string, coin string, cloid string) *CancelOrderResponse
 	CancelOrderByOid(context context.Context, address string, coin string, oid int64) *CancelOrderResponse
@@ -242,7 +242,7 @@ func (e *ExchangeImpl) Order(context context.Context, address string, req OrderR
 
 }
 
-func (e *ExchangeImpl) Points(context context.Context, address string) any {
+func (e *ExchangeImpl) Points(context context.Context, address string) PointsResponse {
 
 	timestamp := int64(1731334407)
 
@@ -258,8 +258,10 @@ func (e *ExchangeImpl) Points(context context.Context, address string) any {
 
 	anyResult := (*e.cli).Post(context, "/info", request)
 	parsed, _ := json.Marshal(anyResult)
-	return parsed
-
+	fmt.Printf("Res %s\n", parsed)
+	var result PointsResponse
+	_ = json.Unmarshal(parsed, &result)
+	return result
 }
 
 func (e *ExchangeImpl) BulkOrders(ctx context.Context, address string, requests []OrderRequest, grouping Grouping) *PlaceOrderResponse {

@@ -4,7 +4,6 @@ import (
 	"crypto/ecdsa"
 	"encoding/json"
 	"fmt"
-
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/signer/core/apitypes"
 )
@@ -487,4 +486,16 @@ type Withdrawal struct {
 	Amount string  `json:"usdc"`
 	Fee    *string `json:"fee"`
 	Nonce  *int64  `json:"nonce"`
+}
+
+type DistributionHistory struct {
+	Points int `json:"points"`
+}
+
+type UserSummary struct {
+	DistributionHistory []DistributionHistory `json:"distributionHistory"`
+}
+
+type PointsResponse struct {
+	UserSummary *UserSummary `json:"userSummary,omitempty"`
 }
