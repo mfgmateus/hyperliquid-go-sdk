@@ -71,6 +71,14 @@ type GetInfoRequest struct {
 	Oid   *string `json:"oid,omitempty"`
 }
 
+type PointsRequest struct {
+	User      *string      `json:"user,omitempty"`
+	Typez     string       `json:"type"`
+	Timestamp int64        `json:"timestamp"`
+	Signature RsvSignature `json:"signature"`
+	ChainId   string       `json:"signatureChainId"`
+}
+
 type MarginSummary struct {
 	AccountValue    string `json:"accountValue"`
 	TotalMarginUsed string `json:"totalMarginUsed"`

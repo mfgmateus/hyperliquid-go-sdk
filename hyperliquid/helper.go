@@ -40,7 +40,7 @@ func GetContractTypes(req SigRequest) apitypes.Types {
 
 func GetDomain(req SigRequest) apitypes.TypedDataDomain {
 
-	if req.PrimaryType == "HyperliquidTransaction:Withdraw" {
+	if req.PrimaryType == "HyperliquidTransaction:Withdraw" || req.PrimaryType == "Hyperliquid:UserPoints" {
 		return apitypes.TypedDataDomain{
 			Name:              "HyperliquidSignTransaction",
 			Version:           "1",

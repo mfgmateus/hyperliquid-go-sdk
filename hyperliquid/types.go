@@ -154,7 +154,7 @@ type SigRequest struct {
 }
 
 func (req SigRequest) GetChainId() *math.HexOrDecimal256 {
-	if req.PrimaryType == "HyperliquidTransaction:Withdraw" {
+	if req.PrimaryType == "HyperliquidTransaction:Withdraw" || req.PrimaryType == "Hyperliquid:UserPoints" {
 		if req.IsMainNet {
 			return math.NewHexOrDecimal256(int64(42161))
 		} else {

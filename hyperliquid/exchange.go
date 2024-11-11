@@ -23,6 +23,7 @@ type ExchangeApi interface {
 	MarketClose(context context.Context, req CloseRequest) *PlaceOrderResponse
 	Trigger(context context.Context, req TriggerRequest) *PlaceOrderResponse
 	Order(context context.Context, address string, req OrderRequest, grouping Grouping) *PlaceOrderResponse
+	Points(context context.Context, address string) any
 	FindOrder(context context.Context, address string, cloid string) OrderResponse
 	CancelOrder(context context.Context, address string, coin string, cloid string) *CancelOrderResponse
 	CancelOrderByOid(context context.Context, address string, coin string, oid int64) *CancelOrderResponse
@@ -238,6 +239,26 @@ func GetSlippage(sl *float64) float64 {
 
 func (e *ExchangeImpl) Order(context context.Context, address string, req OrderRequest, grouping Grouping) *PlaceOrderResponse {
 	return e.BulkOrders(context, address, []OrderRequest{req}, grouping)
+
+}
+
+func (e *ExchangeImpl) Points(context context.Context, address string) any {
+
+	timestamp := int64(1731334407)
+
+	v, r, s := e.SignPointsAction(context, address, timestamp, (*e.cli).IsMainnet())
+
+	request := PointsRequest{
+		User:      &address,
+		Typez:     "userPoints2",
+		Signature: ToTypedSig(r, s, v),
+		Timestamp: timestamp,
+		ChainId:   "0xa4b1",
+	}
+
+	anyResult := (*e.cli).Post(context, "/info", request)
+	parsed, _ := json.Marshal(anyResult)
+	return parsed
 
 }
 
@@ -498,6 +519,41 @@ func (e *ExchangeImpl) SignInner(ctx context.Context, address string, message ap
 		},
 		DTypeMsg:  message,
 		IsMainNet: isMainNet,
+	}
+
+	v, r, s, err := signer.Sign(address, req)
+
+	if err != nil {
+		e.logger.LogErr(ctx, "Failed to sign request", err)
+		panic("Failed to sign request")
+	}
+
+	return v, r, s
+
+}
+
+func (e *ExchangeImpl) SignPointsAction(ctx context.Context, address string, timestamp int64, mainnet bool) (byte, [32]byte, [32]byte) {
+
+	message := apitypes.TypedDataMessage{
+		"hyperliquidChain": "Mainnet",
+		"time":             strconv.FormatInt(timestamp, 10),
+	}
+
+	signer := NewSigner(e.keyManager)
+	req := SigRequest{
+		PrimaryType: "Hyperliquid:UserPoints",
+		DType: []apitypes.Type{
+			{
+				Name: "hyperliquidChain",
+				Type: "string",
+			},
+			{
+				Name: "time",
+				Type: "uint64",
+			},
+		},
+		DTypeMsg:  message,
+		IsMainNet: mainnet,
 	}
 
 	v, r, s, err := signer.Sign(address, req)
